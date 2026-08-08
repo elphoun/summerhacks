@@ -5,9 +5,10 @@ import SwiftUI
 struct HistorySheet: View {
 
     @ObservedObject var model: AppModel
-    /// See TravelSheet.close — switching explorer republishes enough state to
-    /// race an in-flight dismissal.
+    /// See TravelSheet.close — resetting republishes enough state to race an
+    /// in-flight dismissal.
     let close: () -> Void
+
     @State private var confirmingReset = false
 
     var body: some View {
@@ -24,24 +25,21 @@ struct HistorySheet: View {
                 }
 
                 Section {
-                    ForEach(Explorer.roster) { person in
-                        Button {
-                            closeThen { model.switchExplorer(to: person) }
-                        } label: {
-                            HStack(spacing: 12) {
-                                ExplorerAvatar(explorer: person, size: 30)
-                                Text(person.displayName).foregroundStyle(WanderTheme.textPrimary)
-                                Spacer()
-                                if person.id == model.explorer.id {
-                                    PixelIcon(glyph: .checkmark, size: 15, color: WanderTheme.accent)
-                                }
-                            }
+                    HStack(spacing: 12) {
+                        ExplorerAvatar(explorer: model.explorer, size: 30)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(model.explorer.displayName)
+                                .foregroundStyle(WanderTheme.textPrimary)
+                            Text("\(model.friends.count) friends")
+                                .font(.caption)
+                                .foregroundStyle(WanderTheme.secondaryText)
                         }
+                        Spacer()
                     }
                 } header: {
                     Text("Who you are")
                 } footer: {
-                    Text("Each explorer has their own map. Travelling as one of them never uncovers anything for the others — the photos everyone leaves behind are the only thing shared.")
+                    Text("This map is yours alone. It is stored on this device and never sent anywhere — no friend of yours can uncover ground for you, and you cannot uncover any for them. The photographs everyone leaves behind are the only thing shared.")
                 }
 
                 Section("Places you found") {
@@ -79,7 +77,7 @@ struct HistorySheet: View {
                 } header: {
                     Text("Demo")
                 } footer: {
-                    Text("Resets only \(model.explorer.displayName)'s exploration. Photos left in the world are not deleted — those belong to everyone.\n\nServer: \(Config.serverBaseURL.absoluteString)")
+                    Text("Resets only what you have uncovered. Photos left in the world are not deleted, and your friends are kept.\n\nServer: \(Config.serverBaseURL.absoluteString)")
                 }
             }
             .scrollContentBackground(.hidden)
@@ -94,10 +92,10 @@ struct HistorySheet: View {
             .alert("Cloud this map over?", isPresented: $confirmingReset) {
                 Button("Cancel", role: .cancel) {}
                 Button("Reset", role: .destructive) {
-                    closeThen { model.resetCurrentExplorer() }
+                    closeThen { model.resetExploration() }
                 }
             } message: {
-                Text("\(model.explorer.displayName) will start again from \(model.explorer.home.city).")
+                Text("You will start again from \(Place.home.city), with everywhere back under cloud.")
             }
         }
         .presentationDetents([.large])

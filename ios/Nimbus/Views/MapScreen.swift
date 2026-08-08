@@ -43,39 +43,20 @@ struct MapScreen: View {
 
     private var topBar: some View {
         HStack(alignment: .top, spacing: 10) {
-            Menu {
-                Section("Switch explorer") {
-                    ForEach(Explorer.roster) { person in
-                        Button {
-                            model.switchExplorer(to: person)
-                        } label: {
-                            Label(
-                                person.displayName,
-                                systemImage: person.id == model.explorer.id ? "checkmark.circle.fill" : "person.circle"
-                            )
-                        }
-                    }
+            // Who this map belongs to. There is nobody to switch to — one
+            // device is one person — so this states rather than offers.
+            HStack(spacing: 9) {
+                ExplorerAvatar(explorer: model.explorer)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(model.explorer.displayName)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white)
+                    Text(friendsLabel)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.secondaryText)
                 }
-                Button {
-                    sheet = .history
-                } label: {
-                    Label("Exploration history", systemImage: "clock.arrow.circlepath")
-                }
-            } label: {
-                HStack(spacing: 9) {
-                    ExplorerAvatar(explorer: model.explorer)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(model.explorer.displayName)
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.white)
-                        Text("your private map")
-                            .font(.system(size: 11))
-                            .foregroundStyle(Theme.secondaryText)
-                    }
-                    PixelIcon(glyph: .chevronDown, size: 11, color: Theme.secondaryText)
-                }
-                .glassPanel(cornerRadius: 22, padding: 8)
             }
+            .glassPanel(cornerRadius: 22, padding: 8)
 
             Spacer(minLength: 0)
 
@@ -106,6 +87,14 @@ struct MapScreen: View {
             }
         }
         .padding(.top, 6)
+    }
+
+    private var friendsLabel: String {
+        switch model.friends.count {
+        case 0: "no friends yet"
+        case 1: "1 friend"
+        default: "\(model.friends.count) friends"
+        }
     }
 
     private var statsPill: some View {

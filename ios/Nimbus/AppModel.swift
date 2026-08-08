@@ -4,16 +4,18 @@ import SwiftUI
 
 /// Holds the two halves of Nimbus and keeps them apart.
 ///
-/// `exploration` is private to the current explorer and never leaves the
-/// device. `service` is the shared photo store. The only place they meet is
-/// `visiblePhotos`, where photos are hidden until *you* have uncovered the
-/// ground they sit on.
+/// `exploration` is private to this device and never leaves it. `service` is
+/// the shared photo store. The only place they meet is `visiblePhotos`, which
+/// is twice narrowed: to photographs left by your friends, and then to ground
+/// *you* have uncovered.
 @MainActor
 final class AppModel: ObservableObject {
 
     // MARK: Published state
 
+    /// This device's one identity.
     @Published private(set) var explorer: Explorer
+    @Published private(set) var friends: [RemoteUser] = []
     @Published private(set) var exploration: ExplorationStore
 
     @Published private(set) var location: CLLocation?
@@ -54,51 +56,55 @@ final class AppModel: ObservableObject {
 
     // MARK: Lifecycle
 
-    init(explorer: Explorer = .default, service: PhotoService = NimbusAPI()) {
+    init(explorer: Explorer = LocalIdentity.loadOrCreate(), service: PhotoService = NimbusAPI()) {
         self.explorer = explorer
         self.exploration = ExplorationStore(explorerID: explorer.id)
         self.service = service
 
         simulated.onUpdate = { [weak self] location in self?.handle(location) }
         live.onUpdate = { [weak self] location in self?.handle(location) }
+        live.onAuthorizationChange = { [weak self] status in self?.handleAuthorization(status) }
 
-        beginLife(of: explorer)
-    }
+        explorationPoints = exploration.points
 
-    /// Put an explorer where they left off, or at home if this is their first run.
-    private func beginLife(of explorer: Explorer) {
-        let start = exploration.lastCoordinate ?? explorer.home.coordinate
+        // Pick up where this device left off, or open on the starting landmark
+        // if the map has never been anywhere.
+        let start = exploration.lastCoordinate ?? Place.home.coordinate
         simulated.jump(to: start)
         focusMap(on: start, metres: 2_600, animated: false)
-        Task { await checkServer() }
-    }
-
-    func switchExplorer(to next: Explorer) {
-        guard next.id != explorer.id else { return }
-
-        simulated.cancelMovement()
-        isTravelling = false
-
-        explorer = next
-        exploration = ExplorationStore(explorerID: next.id)
-        explorationPoints = exploration.points
-        fogVersion += 1
-        photosInView = []
-        visiblePhotos = []
-        hiddenPhotoCount = 0
-
-        beginLife(of: next)
-        banner = Banner(text: "You are now \(next.displayName). This is their map, not yours.")
     }
 
     private func switchProvider() {
+        // Stopping a provider cancels any walk in flight *without* running its
+        // completion handler, so the travelling flag has to be cleared here or
+        // it sticks on for the rest of the session.
         simulated.stop()
         live.stop()
+        isTravelling = false
+        followsUser = false
+
         if usingRealGPS {
             live.start()
-            banner = Banner(text: "Using this device's real GPS.")
         } else {
             simulated.start()
+        }
+    }
+
+    /// Say what actually happened when the GPS switch is flipped, including the
+    /// case where the person taps "Don't Allow".
+    private func handleAuthorization(_ status: CLAuthorizationStatus) {
+        guard usingRealGPS else { return }
+        switch status {
+        case .authorizedWhenInUse, .authorizedAlways:
+            banner = Banner(text: "Using this device's real GPS.")
+        case .denied, .restricted:
+            usingRealGPS = false
+            banner = Banner(
+                text: "Location is off for Nimbus. Turn it on in Settings, or keep using simulated travel.",
+                isError: true
+            )
+        default:
+            break
         }
     }
 
@@ -181,14 +187,69 @@ final class AppModel: ObservableObject {
     func checkServer() async {
         let reachable = await service.health()
         serverReachable = reachable
-        if reachable {
-            await refreshPhotosForCurrentRegion()
-        } else {
+        guard reachable else {
             banner = Banner(
                 text: "Can't reach the photo server at \(Config.serverBaseURL.absoluteString) — run `node server.js`.",
                 isError: true
             )
+            return
         }
+        await register()
+        await refreshPhotosForCurrentRegion()
+    }
+
+    // MARK: Identity and friends
+
+    /// Tell the server who this device is. Idempotent, and how a rename reaches
+    /// the people who can see your photographs.
+    func register() async {
+        do {
+            let response = try await service.register(explorer)
+            explorer.friendCode = response.user.friendCode
+            LocalIdentity.save(explorer)
+            friends = response.friends
+        } catch {
+            // Not fatal — photographs still load. Only the friend code and the
+            // friend list go missing, so say so rather than showing a blank.
+            banner = Banner(text: "Couldn't reach the server to register. \(error.localizedDescription)", isError: true)
+        }
+    }
+
+    func rename(to newName: String) {
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != explorer.displayName else { return }
+
+        explorer.displayName = trimmed
+        LocalIdentity.save(explorer)
+        Task { await register() }
+    }
+
+    enum AddFriendOutcome {
+        case added(String)
+        case failed(String)
+    }
+
+    func addFriend(code: String) async -> AddFriendOutcome {
+        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !trimmed.isEmpty else { return .failed("Enter a code first.") }
+
+        do {
+            let response = try await service.addFriend(code: trimmed, for: explorer.id)
+            friends = response.friends
+            // Their photographs were invisible a moment ago; make them appear
+            // without waiting for the next pan.
+            await refreshPhotosForCurrentRegion()
+            return .added(response.friend.displayName)
+        } catch let PhotoServiceError.server(_, message) {
+            return .failed(message)
+        } catch {
+            return .failed(error.localizedDescription)
+        }
+    }
+
+    func refreshFriends() async {
+        guard let updated = try? await service.friends(of: explorer.id) else { return }
+        friends = updated
     }
 
     /// The map reports region changes continuously — every frame of a pan, and
@@ -220,7 +281,11 @@ final class AppModel: ObservableObject {
             ... (region.center.longitude + region.span.longitudeDelta / 2)
 
         do {
-            photosInView = try await service.photos(inLatitudes: latitudes, longitudes: longitudes)
+            photosInView = try await service.photos(
+                inLatitudes: latitudes,
+                longitudes: longitudes,
+                viewerID: explorer.id
+            )
             serverReachable = true
             applyExplorationGate()
         } catch {
@@ -229,7 +294,7 @@ final class AppModel: ObservableObject {
     }
 
     /// The one rule connecting the private half to the shared half: you cannot
-    /// see what people left somewhere you have never been.
+    /// see what your friends left somewhere you have never been.
     private func applyExplorationGate() {
         let visible = photosInView.filter { exploration.isExplored($0.coordinate) }
         visiblePhotos = visible
@@ -268,15 +333,20 @@ final class AppModel: ObservableObject {
 
     // MARK: Demo helpers
 
-    /// Wipe only the current explorer, so a demo can be run twice.
-    func resetCurrentExplorer() {
+    /// Cloud this device's map back over, so a demo can be run twice. Nothing
+    /// anyone has left in the world is touched.
+    func resetExploration() {
         exploration.reset()
         explorationPoints = []
         fogVersion += 1
         applyExplorationGate()
-        simulated.jump(to: explorer.home.coordinate)
-        focusMap(on: explorer.home.coordinate, metres: 90_000, animated: true)
-        banner = Banner(text: "\(explorer.displayName)'s map is clouded over again.")
+
+        // `jump` cancels any walk in flight without running its completion.
+        isTravelling = false
+        followsUser = false
+        simulated.jump(to: Place.home.coordinate)
+        focusMap(on: Place.home.coordinate, metres: 90_000, animated: true)
+        banner = Banner(text: "Your map is clouded over again.")
     }
 
     var currentPlaceName: String? {

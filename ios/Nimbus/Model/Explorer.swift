@@ -1,39 +1,88 @@
 import Foundation
 import SwiftUI
 
-/// A person using the app.
+/// You.
 ///
-/// The prototype ships a small roster so that "these two people have different
-/// maps" can be demonstrated on one device. Identifiers are stable, so photos
-/// uploaded in an earlier run still belong to the same explorer after a
-/// reinstall.
+/// One identity per device, made on first launch and kept in `UserDefaults`
+/// from then on. The id is what the server files your photographs under, so it
+/// has to outlive a relaunch — but not a delete-and-reinstall, which is the
+/// closest thing this prototype has to signing out.
 struct Explorer: Identifiable, Codable, Hashable {
     let id: String
-    let displayName: String
-    let colorHex: String
-    /// Where this explorer's simulated life starts. Their map begins fogged
-    /// everywhere except here.
-    let homePlaceID: String
+    var displayName: String
+    var colorHex: String
+    /// Six characters other people type to add you. Allocated by the server on
+    /// registration, so it is absent until the first successful `POST /users`.
+    var friendCode: String?
 
     var color: Color { Color(hex: colorHex) }
 
-    var initials: String {
-        displayName.split(separator: " ").prefix(2).compactMap { $0.first }.map(String.init).joined()
-    }
+    var initials: String { Self.initials(of: displayName) }
 
-    var home: Place {
-        Place.all.first { $0.id == homePlaceID } ?? Place.all[0]
+    static func initials(of name: String) -> String {
+        let letters = name.split(separator: " ").prefix(2).compactMap(\.first)
+        return letters.isEmpty ? "?" : letters.map(String.init).joined()
     }
 }
 
-extension Explorer {
-    static let roster: [Explorer] = [
-        Explorer(id: "explorer-alex", displayName: "Alex Rivera", colorHex: "#6EA8FF", homePlaceID: "golden-gate"),
-        Explorer(id: "explorer-sam", displayName: "Sam Chen", colorHex: "#FF9F68", homePlaceID: "shibuya"),
-        Explorer(id: "explorer-robin", displayName: "Robin Ellis", colorHex: "#9CE37D", homePlaceID: "times-square"),
-    ]
+/// Loads the one identity this device has, making it the first time round.
+enum LocalIdentity {
 
-    static var `default`: Explorer { roster[0] }
+    private static let key = "nimbus.identity"
+
+    /// Colours a new install picks from, so two phones side by side at a demo
+    /// are not both the same blue.
+    private static let palette = ["#6EA8FF", "#FF9F68", "#9CE37D", "#C79BFF", "#5ED2E0", "#FFD166"]
+
+    static func loadOrCreate(from defaults: UserDefaults = .standard) -> Explorer {
+        if let data = defaults.data(forKey: key),
+           let saved = try? JSONDecoder().decode(Explorer.self, from: data) {
+            return saved
+        }
+
+        let fresh = Explorer(
+            id: "explorer-\(UUID().uuidString.lowercased())",
+            displayName: "Explorer",
+            colorHex: palette.randomElement() ?? "#6EA8FF",
+            friendCode: nil
+        )
+        save(fresh, to: defaults)
+        return fresh
+    }
+
+    static func save(_ explorer: Explorer, to defaults: UserDefaults = .standard) {
+        guard let data = try? JSONEncoder().encode(explorer) else { return }
+        defaults.set(data, forKey: key)
+    }
+}
+
+/// Somebody else — a friend, or the author of a photograph.
+///
+/// The same shape the server returns from `/users`, `/friends` and the friend
+/// lookup, so one type covers all three.
+struct RemoteUser: Identifiable, Codable, Hashable {
+    let id: String
+    let displayName: String
+    let color: String
+    var isSeed: Bool?
+    var friendCode: String?
+
+    var swiftUIColor: Color { Color(hex: color) }
+    var initials: String { Explorer.initials(of: displayName) }
+}
+
+struct RegistrationResponse: Codable {
+    let user: RemoteUser
+    let friends: [RemoteUser]
+}
+
+struct FriendListResponse: Codable {
+    let friends: [RemoteUser]
+}
+
+struct AddFriendResponse: Codable {
+    let friend: RemoteUser
+    let friends: [RemoteUser]
 }
 
 extension Color {

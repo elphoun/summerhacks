@@ -36,6 +36,10 @@ extension Place {
         Place(id: "trevi", name: "Trevi Fountain", city: "Rome", country: "Italy", latitude: 41.9009, longitude: 12.4833),
     ]
 
+    /// Where a brand new, wholly clouded map opens. Nothing is uncovered here
+    /// yet — it is just somewhere to point the camera other than the null island.
+    static let home: Place = all.first { $0.id == "golden-gate" } ?? all[0]
+
     /// The landmark you are standing at, if any.
     static func nearest(to coordinate: CLLocationCoordinate2D,
                         within radius: CLLocationDistance = Config.placeArrivalRadiusM) -> Place? {
