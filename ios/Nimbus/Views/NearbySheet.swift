@@ -28,15 +28,15 @@ struct NearbySheet: View {
                         emptyState
                     } else {
                         Text("Left here by other people")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(Theme.secondaryText)
+                            .font(.wander(13, weight: .semibold))
+                            .foregroundStyle(WanderTheme.secondaryText)
                             .textCase(.uppercase)
                         grid
                     }
                 }
                 .padding(20)
             }
-            .background(Theme.background)
+            .background(WanderTheme.background)
             .navigationTitle("This place")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -46,7 +46,7 @@ struct NearbySheet: View {
             }
         }
         .presentationDetents([.large])
-        .presentationBackground(Theme.background)
+        .presentationBackground(WanderTheme.background)
         .sheet(item: $selected) { photo in
             PhotoDetailView(photo: photo, from: nil)
         }
@@ -57,32 +57,38 @@ struct NearbySheet: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(headline)
-                .font(.system(size: 26, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+                .font(.wander(26, weight: .bold))
+                .foregroundStyle(WanderTheme.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: 8) {
-                Label("within \(Int(result.radiusUsed)) m", systemImage: "scope")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(.ultraThinMaterial, in: Capsule())
+                HStack(spacing: 5) {
+                    PixelIcon(glyph: .expand, size: 12, color: WanderTheme.textPrimary)
+                    Text("within \(Int(result.radiusUsed)) m")
+                }
+                .font(.wander(12, weight: .medium))
+                .foregroundStyle(WanderTheme.textPrimary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(WanderTheme.panelSoft, in: Capsule())
 
                 if result.expanded {
-                    Label("widened", systemImage: "arrow.up.left.and.arrow.down.right")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(Theme.warm)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(.ultraThinMaterial, in: Capsule())
+                    HStack(spacing: 5) {
+                        PixelIcon(glyph: .expand, size: 12, color: WanderTheme.warm)
+                        Text("widened")
+                    }
+                    .font(.wander(12, weight: .medium))
+                    .foregroundStyle(WanderTheme.warm)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(WanderTheme.panelSoft, in: Capsule())
                 }
             }
 
             if result.expanded {
                 Text("Fewer than three memories within \(Int(result.primaryRadiusM)) m, so Nimbus widened the search to \(Int(result.fallbackRadiusM)) m.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Theme.secondaryText)
+                    .font(.wander(13))
+                    .foregroundStyle(WanderTheme.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -103,33 +109,33 @@ struct NearbySheet: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("Your photo is here now")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .font(.wander(15, weight: .semibold))
+                    .foregroundStyle(WanderTheme.textPrimary)
                 Text(photo.caption.isEmpty ? "No note" : photo.caption)
-                    .font(.system(size: 13))
-                    .foregroundStyle(Theme.secondaryText)
+                    .font(.wander(13))
+                    .foregroundStyle(WanderTheme.secondaryText)
                     .lineLimit(2)
                 Text("Whoever comes next will find it.")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Theme.accent)
+                    .font(.wander(12))
+                    .foregroundStyle(WanderTheme.accent)
             }
             Spacer(minLength: 0)
         }
-        .glassPanel(cornerRadius: 18, padding: 14)
+        .wanderCard(cornerRadius: 18, padding: 14)
         .onTapGesture { selected = photo }
     }
 
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Nothing else within \(Int(result.radiusUsed)) m — yet.")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.white)
+                .font(.wander(15, weight: .semibold))
+                .foregroundStyle(WanderTheme.textPrimary)
             Text("Your photo is the start of this place's collection.")
-                .font(.system(size: 13))
-                .foregroundStyle(Theme.secondaryText)
+                .font(.wander(13))
+                .foregroundStyle(WanderTheme.secondaryText)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassPanel(cornerRadius: 18, padding: 16)
+        .wanderCard(cornerRadius: 18, padding: 16)
     }
 
     private var grid: some View {
@@ -142,12 +148,12 @@ struct NearbySheet: View {
                         PhotoThumbnail(photo: photo)
                             .frame(height: 175)
                         Text(photo.displayName)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(.white)
+                            .font(.wander(13, weight: .semibold))
+                            .foregroundStyle(WanderTheme.textPrimary)
                             .lineLimit(1)
                         Text(subtitle(for: photo))
-                            .font(.system(size: 11))
-                            .foregroundStyle(Theme.secondaryText)
+                            .font(.wander(11))
+                            .foregroundStyle(WanderTheme.secondaryText)
                     }
                 }
                 .buttonStyle(.plain)

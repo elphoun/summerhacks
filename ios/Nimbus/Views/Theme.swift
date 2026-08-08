@@ -34,7 +34,7 @@ extension View {
 
 /// Round frosted button for the map controls.
 struct CircleGlassButton: View {
-    let systemImage: String
+    let glyph: PixelGlyph
     var label: String?
     var tint: Color = .white
     let action: () -> Void
@@ -42,8 +42,7 @@ struct CircleGlassButton: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 4) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 20, weight: .semibold))
+                PixelIcon(glyph: glyph, size: 20, color: tint)
                 if let label {
                     Text(label)
                         .font(.system(size: 10, weight: .medium))
@@ -88,21 +87,20 @@ struct PhotoThumbnail: View {
                 image.resizable().scaledToFill()
             case .failure:
                 ZStack {
-                    Theme.panel
-                    Image(systemName: "photo")
-                        .foregroundStyle(Theme.secondaryText)
+                    WanderTheme.panelSoft
+                    PixelIcon(glyph: .image, size: 22, color: WanderTheme.secondaryText)
                 }
             default:
                 ZStack {
-                    Theme.panel
-                    ProgressView().tint(Theme.secondaryText)
+                    WanderTheme.panelSoft
+                    ProgressView().tint(WanderTheme.secondaryText)
                 }
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .clipShape(PixelRoundedRect(radius: cornerRadius, steps: 2))
         .overlay(
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .stroke(Theme.hairline, lineWidth: 1)
+            PixelRoundedRect(radius: cornerRadius, steps: 2)
+                .stroke(WanderTheme.hairline, lineWidth: 1)
         )
     }
 }

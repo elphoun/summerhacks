@@ -21,6 +21,15 @@
 		<string>location</string>
 	</array>
 
+	<key>UIAppFonts</key>
+	<array>
+		<string>Manrope-Regular.ttf</string>
+		<string>Manrope-Medium.ttf</string>
+		<string>Manrope-SemiBold.ttf</string>
+		<string>Manrope-Bold.ttf</string>
+		<string>Manrope-ExtraBold.ttf</string>
+	</array>
+
 	<!-- The photo server runs on plain http on localhost or the LAN. This
 	     exception covers exactly that and nothing wider. -->
 	<key>NSAppTransportSecurity</key>

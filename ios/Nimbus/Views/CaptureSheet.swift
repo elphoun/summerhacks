@@ -39,7 +39,7 @@ struct CaptureSheet: View {
                     chooser
                 }
             }
-            .background(Theme.background)
+            .background(WanderTheme.background)
             .navigationTitle(image == nil ? "Leave a memory" : "Add a note")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -49,7 +49,7 @@ struct CaptureSheet: View {
             }
         }
         .presentationDetents([.large])
-        .presentationBackground(Theme.background)
+        .presentationBackground(WanderTheme.background)
         .fullScreenCover(isPresented: $showCamera) {
             CameraPicker { picked in image = picked }
                 .ignoresSafeArea()
@@ -71,16 +71,16 @@ struct CaptureSheet: View {
         VStack(spacing: 18) {
             VStack(spacing: 6) {
                 Text(model.currentPlaceName ?? "Right here")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .font(.wander(22, weight: .bold))
+                    .foregroundStyle(WanderTheme.textPrimary)
                 if let location = model.location {
                     Text(String(format: "%.5f, %.5f", location.coordinate.latitude, location.coordinate.longitude))
                         .font(.system(size: 12, design: .monospaced))
-                        .foregroundStyle(Theme.secondaryText)
+                        .foregroundStyle(WanderTheme.secondaryText)
                 }
                 Text("Your photo stays here for whoever comes next.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Theme.secondaryText)
+                    .font(.wander(13))
+                    .foregroundStyle(WanderTheme.secondaryText)
                     .multilineTextAlignment(.center)
                     .padding(.top, 2)
             }
@@ -88,24 +88,24 @@ struct CaptureSheet: View {
 
             VStack(spacing: 12) {
                 if Self.cameraIsUsable {
-                    sourceButton("Take a photo", systemImage: "camera.fill", prominent: true) {
+                    sourceButton("Take a photo", glyph: .camera, prominent: true) {
                         showCamera = true
                     }
                 }
 
                 PhotosPicker(selection: $pickerItem, matching: .images) {
-                    sourceLabel("Choose from library", systemImage: "photo.on.rectangle", prominent: false)
+                    sourceLabel("Choose from library", glyph: .image, prominent: false)
                 }
                 .buttonStyle(.plain)
 
-                sourceButton("Use a sample shot", systemImage: "wand.and.stars", prominent: !Self.cameraIsUsable) {
+                sourceButton("Use a sample shot", glyph: .sparkles, prominent: !Self.cameraIsUsable) {
                     image = SampleShotRenderer.make()
                 }
 
                 if !Self.cameraIsUsable {
                     Text("No camera here — the sample shot stands in for one.")
                         .font(.caption)
-                        .foregroundStyle(Theme.secondaryText)
+                        .foregroundStyle(WanderTheme.secondaryText)
                         .multilineTextAlignment(.center)
                         .padding(.top, 4)
                 }
@@ -117,33 +117,33 @@ struct CaptureSheet: View {
     }
 
     private func sourceButton(_ title: String,
-                              systemImage: String,
+                              glyph: PixelGlyph,
                               prominent: Bool,
                               action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            sourceLabel(title, systemImage: systemImage, prominent: prominent)
+            sourceLabel(title, glyph: glyph, prominent: prominent)
         }
         .buttonStyle(.plain)
     }
 
-    private func sourceLabel(_ title: String, systemImage: String, prominent: Bool) -> some View {
+    private func sourceLabel(_ title: String, glyph: PixelGlyph, prominent: Bool) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: systemImage)
-            Text(title).font(.system(size: 16, weight: .semibold))
+            PixelIcon(glyph: glyph, size: 18, color: prominent ? .white : WanderTheme.textPrimary)
+            Text(title).font(.wander(16, weight: .semibold))
             Spacer()
         }
-        .foregroundStyle(prominent ? Theme.background : .white)
+        .foregroundStyle(prominent ? .white : WanderTheme.textPrimary)
         .padding(.horizontal, 18)
         .padding(.vertical, 16)
         .background {
             if prominent {
-                RoundedRectangle(cornerRadius: 16, style: .continuous).fill(.white)
+                PixelRoundedRect(radius: 16, steps: 2).fill(WanderTheme.warm)
             } else {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                PixelRoundedRect(radius: 16, steps: 2)
+                    .fill(WanderTheme.panel)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(Theme.hairline, lineWidth: 1)
+                        PixelRoundedRect(radius: 16, steps: 2)
+                            .stroke(WanderTheme.hairline, lineWidth: 1)
                     )
             }
         }
@@ -158,10 +158,10 @@ struct CaptureSheet: View {
                 .scaledToFill()
                 .frame(maxWidth: .infinity)
                 .frame(height: 340)
-                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .clipShape(PixelRoundedRect(radius: 20, steps: 2))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .stroke(Theme.hairline, lineWidth: 1)
+                    PixelRoundedRect(radius: 20, steps: 2)
+                        .stroke(WanderTheme.hairline, lineWidth: 1)
                 )
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
@@ -170,10 +170,10 @@ struct CaptureSheet: View {
                 .lineLimit(1...3)
                 .textFieldStyle(.plain)
                 .padding(14)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .background(WanderTheme.panel, in: PixelRoundedRect(radius: 14, steps: 2))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Theme.hairline, lineWidth: 1)
+                    PixelRoundedRect(radius: 14, steps: 2)
+                        .stroke(WanderTheme.hairline, lineWidth: 1)
                 )
                 .padding(.horizontal, 20)
 
@@ -182,15 +182,15 @@ struct CaptureSheet: View {
             } label: {
                 HStack(spacing: 8) {
                     if isUploading {
-                        ProgressView().tint(Theme.background)
+                        ProgressView().tint(.white)
                     }
                     Text(isUploading ? "Leaving it here…" : "Leave this photo here")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.wander(16, weight: .semibold))
                 }
-                .foregroundStyle(Theme.background)
+                .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
-                .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(.white))
+                .background(PixelRoundedRect(radius: 16, steps: 2).fill(WanderTheme.warm))
             }
             .buttonStyle(.plain)
             .disabled(isUploading)
@@ -200,8 +200,8 @@ struct CaptureSheet: View {
                 self.image = nil
                 caption = ""
             }
-            .font(.system(size: 13))
-            .foregroundStyle(Theme.secondaryText)
+            .font(.wander(13))
+            .foregroundStyle(WanderTheme.secondaryText)
             .disabled(isUploading)
 
             Spacer()
