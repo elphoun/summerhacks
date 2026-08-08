@@ -1,0 +1,14 @@
+# Server data: the database and the generated seed artwork are reproducible
+# with `node seed.js`, so they do not belong in the repository.
+server/data/
+
+# Xcode
+ios/build/
+ios/DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+
+# macOS
+.DS_Store

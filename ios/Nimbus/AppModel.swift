@@ -1,0 +1,285 @@
+import CoreLocation
+import MapKit
+import SwiftUI
+
+/// Holds the two halves of Nimbus and keeps them apart.
+///
+/// `exploration` is private to the current explorer and never leaves the
+/// device. `service` is the shared photo store. The only place they meet is
+/// `visiblePhotos`, where photos are hidden until *you* have uncovered the
+/// ground they sit on.
+@MainActor
+final class AppModel: ObservableObject {
+
+    // MARK: Published state
+
+    @Published private(set) var explorer: Explorer
+    @Published private(set) var exploration: ExplorationStore
+
+    @Published private(set) var location: CLLocation?
+    @Published private(set) var explorationPoints: [ExploredPoint] = []
+    /// Increments whenever the fog changes, which is what makes the map redraw.
+    @Published private(set) var fogVersion = 0
+
+    @Published private(set) var visiblePhotos: [Photo] = []
+    @Published private(set) var hiddenPhotoCount = 0
+
+    @Published private(set) var serverReachable: Bool?
+    @Published private(set) var isTravelling = false
+    @Published var focus: MapFocus?
+    @Published var followsUser = false
+    @Published var banner: Banner?
+
+    @Published var usingRealGPS = false {
+        didSet { switchProvider() }
+    }
+
+    struct Banner: Identifiable, Equatable {
+        let id = UUID()
+        let text: String
+        var isError = false
+    }
+
+    // MARK: Collaborators
+
+    let simulated = SimulatedLocationProvider()
+    let live = LiveLocationProvider()
+    private let service: PhotoService
+
+    /// Everything the last bbox query returned, before the exploration gate.
+    private var photosInView: [Photo] = []
+    private var focusToken = 0
+    private var lastRegion: MKCoordinateRegion?
+    private var regionFetch: Task<Void, Never>?
+
+    // MARK: Lifecycle
+
+    init(explorer: Explorer = .default, service: PhotoService = NimbusAPI()) {
+        self.explorer = explorer
+        self.exploration = ExplorationStore(explorerID: explorer.id)
+        self.service = service
+
+        simulated.onUpdate = { [weak self] location in self?.handle(location) }
+        live.onUpdate = { [weak self] location in self?.handle(location) }
+
+        beginLife(of: explorer)
+    }
+
+    /// Put an explorer where they left off, or at home if this is their first run.
+    private func beginLife(of explorer: Explorer) {
+        let start = exploration.lastCoordinate ?? explorer.home.coordinate
+        simulated.jump(to: start)
+        focusMap(on: start, metres: 2_600, animated: false)
+        Task { await checkServer() }
+    }
+
+    func switchExplorer(to next: Explorer) {
+        guard next.id != explorer.id else { return }
+
+        simulated.cancelMovement()
+        isTravelling = false
+
+        explorer = next
+        exploration = ExplorationStore(explorerID: next.id)
+        explorationPoints = exploration.points
+        fogVersion += 1
+        photosInView = []
+        visiblePhotos = []
+        hiddenPhotoCount = 0
+
+        beginLife(of: next)
+        banner = Banner(text: "You are now \(next.displayName). This is their map, not yours.")
+    }
+
+    private func switchProvider() {
+        simulated.stop()
+        live.stop()
+        if usingRealGPS {
+            live.start()
+            banner = Banner(text: "Using this device's real GPS.")
+        } else {
+            simulated.start()
+        }
+    }
+
+    // MARK: Location
+
+    private func handle(_ location: CLLocation) {
+        self.location = location
+        let uncoveredSomethingNew = exploration.record(location)
+
+        if uncoveredSomethingNew {
+            explorationPoints = exploration.points
+            fogVersion += 1
+            applyExplorationGate()
+        }
+    }
+
+    /// Fly or walk to a destination, then have a look around — a short wander
+    /// makes the reveal look like a person moving through a place rather than a
+    /// stamped circle.
+    func travel(to coordinate: CLLocationCoordinate2D, named name: String?) {
+        simulated.cancelMovement()
+        usingRealGPS = false
+        isTravelling = true
+        followsUser = true
+        focusMap(on: coordinate, metres: 1_400, animated: true)
+
+        simulated.travel(to: coordinate) { [weak self] arrival in
+            guard let self else { return }
+            if arrival == .flew {
+                self.banner = Banner(text: name.map { "Arrived at \($0)." } ?? "Arrived.")
+            }
+            // Deliberately small: arriving somewhere should leave you *at* it,
+            // close enough that the memories people left there are within the
+            // 100m search. "Walk around here" is the way to cover more ground.
+            self.simulated.wander(radiusM: 60, legs: 3) { [weak self] _ in
+                guard let self else { return }
+                self.isTravelling = false
+                self.followsUser = false
+                Task { await self.refreshPhotosForCurrentRegion() }
+            }
+        }
+    }
+
+    func travel(to place: Place) {
+        travel(to: place.coordinate, named: place.name)
+    }
+
+    /// Mill about where you already are, uncovering a few more streets.
+    func wanderHere() {
+        guard !isTravelling else { return }
+        usingRealGPS = false
+        isTravelling = true
+        followsUser = true
+        simulated.wander(radiusM: 500, legs: 7) { [weak self] _ in
+            guard let self else { return }
+            self.isTravelling = false
+            self.followsUser = false
+            Task { await self.refreshPhotosForCurrentRegion() }
+        }
+    }
+
+    func centreOnMe() {
+        guard let coordinate = location?.coordinate else { return }
+        focusMap(on: coordinate, metres: 1_200, animated: true)
+    }
+
+    func focusMap(on coordinate: CLLocationCoordinate2D, metres: Double, animated: Bool) {
+        focusToken += 1
+        focus = MapFocus(
+            token: focusToken,
+            latitude: coordinate.latitude,
+            longitude: coordinate.longitude,
+            metres: metres,
+            animated: animated
+        )
+    }
+
+    // MARK: Photos (shared)
+
+    func checkServer() async {
+        let reachable = await service.health()
+        serverReachable = reachable
+        if reachable {
+            await refreshPhotosForCurrentRegion()
+        } else {
+            banner = Banner(
+                text: "Can't reach the photo server at \(Config.serverBaseURL.absoluteString) — run `node server.js`.",
+                isError: true
+            )
+        }
+    }
+
+    /// The map reports region changes continuously — every frame of a pan, and
+    /// every simulated step while the camera follows a walk. Coalesce them so
+    /// one gesture costs one request.
+    func regionChanged(_ region: MKCoordinateRegion) {
+        lastRegion = region
+        regionFetch?.cancel()
+        regionFetch = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(350))
+            guard !Task.isCancelled else { return }
+            await self?.refreshPhotos(in: region)
+        }
+    }
+
+    private func refreshPhotosForCurrentRegion() async {
+        guard let region = lastRegion else { return }
+        await refreshPhotos(in: region)
+    }
+
+    private func refreshPhotos(in region: MKCoordinateRegion) async {
+        // A whole-world request would drag back every photo in the database for
+        // ground the explorer almost certainly cannot see anyway.
+        guard region.span.latitudeDelta < 12 else { return }
+
+        let latitudes = (region.center.latitude - region.span.latitudeDelta / 2)
+            ... (region.center.latitude + region.span.latitudeDelta / 2)
+        let longitudes = (region.center.longitude - region.span.longitudeDelta / 2)
+            ... (region.center.longitude + region.span.longitudeDelta / 2)
+
+        do {
+            photosInView = try await service.photos(inLatitudes: latitudes, longitudes: longitudes)
+            serverReachable = true
+            applyExplorationGate()
+        } catch {
+            serverReachable = false
+        }
+    }
+
+    /// The one rule connecting the private half to the shared half: you cannot
+    /// see what people left somewhere you have never been.
+    private func applyExplorationGate() {
+        let visible = photosInView.filter { exploration.isExplored($0.coordinate) }
+        visiblePhotos = visible
+        hiddenPhotoCount = photosInView.count - visible.count
+    }
+
+    // MARK: Capture
+
+    struct CaptureOutcome {
+        let photo: Photo
+        let nearby: NearbyResult
+    }
+
+    func leavePhoto(imageData: Data, caption: String) async -> CaptureOutcome? {
+        guard let coordinate = location?.coordinate else {
+            banner = Banner(text: "No location yet.", isError: true)
+            return nil
+        }
+
+        do {
+            let response = try await service.upload(
+                imageData: imageData,
+                coordinate: coordinate,
+                caption: caption,
+                explorer: explorer,
+                placeName: Place.nearest(to: coordinate)?.name
+            )
+            exploration.notePhotoLeft()
+            await refreshPhotosForCurrentRegion()
+            return CaptureOutcome(photo: response.photo, nearby: response.nearby)
+        } catch {
+            banner = Banner(text: error.localizedDescription, isError: true)
+            return nil
+        }
+    }
+
+    // MARK: Demo helpers
+
+    /// Wipe only the current explorer, so a demo can be run twice.
+    func resetCurrentExplorer() {
+        exploration.reset()
+        explorationPoints = []
+        fogVersion += 1
+        applyExplorationGate()
+        simulated.jump(to: explorer.home.coordinate)
+        focusMap(on: explorer.home.coordinate, metres: 90_000, animated: true)
+        banner = Banner(text: "\(explorer.displayName)'s map is clouded over again.")
+    }
+
+    var currentPlaceName: String? {
+        location.flatMap { Place.nearest(to: $0.coordinate)?.name }
+    }
+}
