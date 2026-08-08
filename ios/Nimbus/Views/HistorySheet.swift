@@ -30,11 +30,11 @@ struct HistorySheet: View {
                         } label: {
                             HStack(spacing: 12) {
                                 ExplorerAvatar(explorer: person, size: 30)
-                                Text(person.displayName).foregroundStyle(.white)
+                                Text(person.displayName).foregroundStyle(WanderTheme.textPrimary)
                                 Spacer()
                                 if person.id == model.explorer.id {
                                     Image(systemName: "checkmark")
-                                        .foregroundStyle(Theme.accent)
+                                        .foregroundStyle(WanderTheme.accent)
                                 }
                             }
                         }
@@ -48,20 +48,20 @@ struct HistorySheet: View {
                 Section("Places you found") {
                     if model.exploration.mostRecentVisits.isEmpty {
                         Text("Nothing yet. The world is still under cloud.")
-                            .foregroundStyle(Theme.secondaryText)
+                            .foregroundStyle(WanderTheme.secondaryText)
                     } else {
                         ForEach(model.exploration.mostRecentVisits) { visit in
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(visit.placeName).foregroundStyle(.white)
+                                    Text(visit.placeName).foregroundStyle(WanderTheme.textPrimary)
                                     Text("\(visit.city), \(visit.country)")
                                         .font(.caption)
-                                        .foregroundStyle(Theme.secondaryText)
+                                        .foregroundStyle(WanderTheme.secondaryText)
                                 }
                                 Spacer()
                                 Text(visit.firstSeen.formatted(date: .abbreviated, time: .shortened))
                                     .font(.caption)
-                                    .foregroundStyle(Theme.secondaryText)
+                                    .foregroundStyle(WanderTheme.secondaryText)
                             }
                         }
                     }
@@ -80,7 +80,7 @@ struct HistorySheet: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(Theme.background)
+            .background(WanderTheme.background)
             .navigationTitle("Your exploration")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -98,7 +98,7 @@ struct HistorySheet: View {
             }
         }
         .presentationDetents([.large])
-        .presentationBackground(Theme.background)
+        .presentationBackground(WanderTheme.background)
     }
 
     /// Dismiss, then act once the sheet is actually gone.
@@ -111,10 +111,10 @@ struct HistorySheet: View {
         VStack(spacing: 4) {
             Text(value)
                 .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+                .foregroundStyle(WanderTheme.textPrimary)
             Text(caption)
                 .font(.system(size: 11))
-                .foregroundStyle(Theme.secondaryText)
+                .foregroundStyle(WanderTheme.secondaryText)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 14)

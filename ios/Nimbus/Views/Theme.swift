@@ -88,21 +88,21 @@ struct PhotoThumbnail: View {
                 image.resizable().scaledToFill()
             case .failure:
                 ZStack {
-                    Theme.panel
+                    WanderTheme.panelSoft
                     Image(systemName: "photo")
-                        .foregroundStyle(Theme.secondaryText)
+                        .foregroundStyle(WanderTheme.secondaryText)
                 }
             default:
                 ZStack {
-                    Theme.panel
-                    ProgressView().tint(Theme.secondaryText)
+                    WanderTheme.panelSoft
+                    ProgressView().tint(WanderTheme.secondaryText)
                 }
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .stroke(Theme.hairline, lineWidth: 1)
+                .stroke(WanderTheme.hairline, lineWidth: 1)
         )
     }
 }

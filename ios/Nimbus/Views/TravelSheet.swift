@@ -28,25 +28,26 @@ struct TravelSheet: View {
                     } label: {
                         Label {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Walk around here").foregroundStyle(.white)
+                                Text("Walk around here").foregroundStyle(WanderTheme.textPrimary)
                                 Text("Uncovers a few more streets on foot")
                                     .font(.caption)
-                                    .foregroundStyle(Theme.secondaryText)
+                                    .foregroundStyle(WanderTheme.secondaryText)
                             }
                         } icon: {
-                            Image(systemName: "figure.walk").foregroundStyle(Theme.accent)
+                            Image(systemName: "figure.walk").foregroundStyle(WanderTheme.accent)
                         }
                     }
                     .disabled(model.isTravelling)
 
                     Toggle(isOn: $model.usingRealGPS) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Use this device's real GPS").foregroundStyle(.white)
+                            Text("Use this device's real GPS").foregroundStyle(WanderTheme.textPrimary)
                             Text("Walk outside and the fog lifts for real")
                                 .font(.caption)
-                                .foregroundStyle(Theme.secondaryText)
+                                .foregroundStyle(WanderTheme.secondaryText)
                         }
                     }
+                    .tint(WanderTheme.accent)
                 } header: {
                     Text("Where you are")
                 } footer: {
@@ -60,21 +61,21 @@ struct TravelSheet: View {
                         } label: {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(place.name).foregroundStyle(.white)
+                                    Text(place.name).foregroundStyle(WanderTheme.textPrimary)
                                     Text("\(place.city), \(place.country)")
                                         .font(.caption)
-                                        .foregroundStyle(Theme.secondaryText)
+                                        .foregroundStyle(WanderTheme.secondaryText)
                                 }
                                 Spacer()
                                 VStack(alignment: .trailing, spacing: 2) {
                                     Text(distanceLabel(to: place))
                                         .font(.system(size: 12, weight: .medium, design: .rounded))
-                                        .foregroundStyle(Theme.secondaryText)
+                                        .foregroundStyle(WanderTheme.secondaryText)
                                     if model.exploration.isExplored(place.coordinate) {
                                         Label("uncovered", systemImage: "checkmark.circle.fill")
                                             .labelStyle(.titleAndIcon)
                                             .font(.system(size: 10, weight: .semibold))
-                                            .foregroundStyle(Theme.accent)
+                                            .foregroundStyle(WanderTheme.accent)
                                     }
                                 }
                             }
@@ -83,7 +84,7 @@ struct TravelSheet: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(Theme.background)
+            .background(WanderTheme.background)
             .navigationTitle("Travel")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -93,7 +94,7 @@ struct TravelSheet: View {
             }
         }
         .presentationDetents([.medium, .large])
-        .presentationBackground(Theme.background)
+        .presentationBackground(WanderTheme.background)
     }
 
     /// Dismiss, then act once the sheet is actually gone.
