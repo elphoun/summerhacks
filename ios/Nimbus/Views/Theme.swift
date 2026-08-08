@@ -61,17 +61,33 @@ struct CircleGlassButton: View {
     }
 }
 
-/// Initials in a coloured ring. Stands in for a profile picture.
+/// Initials in a coloured ring. Stands in for a profile picture, for you and
+/// for your friends alike.
 struct ExplorerAvatar: View {
-    let explorer: Explorer
-    var size: CGFloat = 34
+    private let initials: String
+    private let color: Color
+    private let size: CGFloat
+
+    init(explorer: Explorer, size: CGFloat = 34) {
+        self.init(initials: explorer.initials, color: explorer.color, size: size)
+    }
+
+    init(user: RemoteUser, size: CGFloat = 34) {
+        self.init(initials: user.initials, color: user.swiftUIColor, size: size)
+    }
+
+    init(initials: String, color: Color, size: CGFloat = 34) {
+        self.initials = initials
+        self.color = color
+        self.size = size
+    }
 
     var body: some View {
-        Text(explorer.initials)
+        Text(initials)
             .font(.system(size: size * 0.38, weight: .bold, design: .rounded))
             .foregroundStyle(.white)
             .frame(width: size, height: size)
-            .background(Circle().fill(explorer.color.opacity(0.85)))
+            .background(Circle().fill(color.opacity(0.85)))
             .overlay(Circle().stroke(.white.opacity(0.35), lineWidth: 1.5))
     }
 }

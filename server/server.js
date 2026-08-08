@@ -3,10 +3,17 @@
 //   GET  /health
 //   GET  /users
 //   POST /users                     register this device's identity
+//   GET  /friends?userId
+//   POST /friends                   add someone by their friend code
 //   GET  /photos/nearby?lat&lon&viewerId
-//   GET  /photos/bbox?minLat&maxLat&minLon&maxLon
+//   GET  /photos/bbox?minLat&maxLat&minLon&maxLon&viewerId
 //   POST /photos                    upload + nearby search in one round trip
 //   GET  /media/:file
+//
+// Every photo route is scoped by `viewerId` to that person and their friends.
+// Omitting it returns everything, which keeps curl useful while debugging a
+// demo — this server has no authentication of any kind and is not pretending
+// otherwise.
 
 import http from 'node:http';
 import fs from 'node:fs';
@@ -17,12 +24,18 @@ import { fileURLToPath } from 'node:url';
 
 import {
   MEDIA_DIR,
+  audienceFor,
+  befriendSeedUsers,
   countPhotos,
+  findInBox,
   findNearby,
+  findUserByCode,
   getPhoto,
   insertPhoto,
+  listFriends,
   listUsers,
   openDatabase,
+  addFriendship,
   upsertUser,
 } from './db.js';
 
@@ -57,6 +70,9 @@ export function createServer(db) {
         return sendJson(res, 200, { users: listUsers(db) });
       }
 
+      // One identity per device. The app calls this on every launch: it
+      // registers a brand new install and refreshes the display name of an
+      // existing one through the same path.
       if (route === 'POST /users') {
         const body = await readJson(req);
         const user = upsertUser(db, {
@@ -65,44 +81,46 @@ export function createServer(db) {
           color: body.color ?? '#6EA8FF',
           isSeed: false,
         });
-        return sendJson(res, 200, { user });
+        befriendSeedUsers(db, user.id);
+        return sendJson(res, 200, { user, friends: listFriends(db, user.id) });
+      }
+
+      if (route === 'GET /friends') {
+        const userId = requireParam(url.searchParams, 'userId');
+        return sendJson(res, 200, { friends: listFriends(db, userId) });
+      }
+
+      if (route === 'POST /friends') {
+        const body = await readJson(req);
+        const userId = requireString(body, 'userId');
+        const friend = findUserByCode(db, requireString(body, 'code'));
+
+        if (!friend) throw badRequest('no one has that code', 404);
+        if (friend.id === userId) throw badRequest('that is your own code');
+
+        addFriendship(db, userId, friend.id);
+        return sendJson(res, 200, { friend, friends: listFriends(db, userId) });
       }
 
       if (route === 'GET /photos/nearby') {
         const lat = requireFloat(url.searchParams, 'lat');
         const lon = requireFloat(url.searchParams, 'lon');
         const viewerId = url.searchParams.get('viewerId');
-        return sendJson(res, 200, findNearby(db, { lat, lon, viewerId, config }));
+        return sendJson(res, 200, {
+          ...findNearby(db, { lat, lon, viewerId, audience: audienceFor(db, viewerId), config }),
+        });
       }
 
       if (route === 'GET /photos/bbox') {
-        const rows = db
-          .prepare(
-            `SELECT p.id, p.user_id, p.lat, p.lon, p.taken_at, p.caption, p.media_file,
-                    p.place_name, u.display_name, u.color
-               FROM photos p JOIN users u ON u.id = p.user_id
-              WHERE p.lat BETWEEN ? AND ? AND p.lon BETWEEN ? AND ?
-              LIMIT 500`,
-          )
-          .all(
-            requireFloat(url.searchParams, 'minLat'),
-            requireFloat(url.searchParams, 'maxLat'),
-            requireFloat(url.searchParams, 'minLon'),
-            requireFloat(url.searchParams, 'maxLon'),
-          );
+        const viewerId = url.searchParams.get('viewerId');
         return sendJson(res, 200, {
-          photos: rows.map((row) => ({
-            id: row.id,
-            userId: row.user_id,
-            displayName: row.display_name,
-            color: row.color,
-            lat: row.lat,
-            lon: row.lon,
-            takenAt: row.taken_at,
-            caption: row.caption,
-            placeName: row.place_name,
-            imagePath: `/media/${row.media_file}`,
-          })),
+          photos: findInBox(db, {
+            minLat: requireFloat(url.searchParams, 'minLat'),
+            maxLat: requireFloat(url.searchParams, 'maxLat'),
+            minLon: requireFloat(url.searchParams, 'minLon'),
+            maxLon: requireFloat(url.searchParams, 'maxLon'),
+            audience: audienceFor(db, viewerId),
+          }),
         });
       }
 
@@ -119,6 +137,7 @@ export function createServer(db) {
           displayName: body.displayName ?? 'Explorer',
           color: body.color ?? '#6EA8FF',
         });
+        befriendSeedUsers(db, userId);
 
         const id = randomUUID();
         const mediaFile = writeMedia(id, requireString(body, 'imageBase64'));
@@ -138,7 +157,13 @@ export function createServer(db) {
         // the upload response already carries the neighbourhood.
         return sendJson(res, 201, {
           photo: { ...photo, isYours: true, distanceM: 0 },
-          nearby: findNearby(db, { lat, lon, viewerId: userId, config }),
+          nearby: findNearby(db, {
+            lat,
+            lon,
+            viewerId: userId,
+            audience: audienceFor(db, userId),
+            config,
+          }),
         });
       }
 
@@ -220,11 +245,17 @@ function readJson(req) {
   });
 }
 
-const badRequest = (message) => Object.assign(new Error(message), { statusCode: 400 });
+const badRequest = (message, statusCode = 400) => Object.assign(new Error(message), { statusCode });
 
 function requireFloat(params, key) {
   const value = Number.parseFloat(params.get(key));
   if (!Number.isFinite(value)) throw badRequest(`query parameter "${key}" must be a number`);
+  return value;
+}
+
+function requireParam(params, key) {
+  const value = params.get(key);
+  if (!value) throw badRequest(`query parameter "${key}" is required`);
   return value;
 }
 

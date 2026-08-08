@@ -1,8 +1,9 @@
 // Tests for the exploration model — the private half of Nimbus.
 //
 // These run on macOS via ../logic-tests.sh, with no simulator involved, because
-// the property they check is the one the whole product rests on: one person's
-// travel must never uncover anything for anyone else.
+// the property they check is the one the whole product rests on: a map belongs
+// to one identity, and nothing another person does can uncover ground on it.
+// Friendship shares photographs; it never shares movement.
 
 import CoreLocation
 import Foundation
@@ -37,20 +38,20 @@ enum LogicTests {
             expect(!store.isExplored(offset(paris, metres: 50_000)), "expected the next town still clouded")
         }
 
-        // The product's central claim.
-        test("one explorer travelling does NOT uncover anything for another") {
-            let alex = ExplorationStore(explorerID: "alex-2", directory: scratch)
-            let sam = ExplorationStore(explorerID: "sam-2", directory: scratch)
+        // The product's central claim: your friends' travels are not yours.
+        test("a map is keyed to one identity and no other can uncover it") {
+            let mine = ExplorationStore(explorerID: "me-2", directory: scratch)
+            let theirs = ExplorationStore(explorerID: "friend-2", directory: scratch)
 
-            alex.record(CLLocation(latitude: paris.latitude, longitude: paris.longitude))
+            mine.record(CLLocation(latitude: paris.latitude, longitude: paris.longitude))
 
-            expect(alex.isExplored(paris), "Alex should have uncovered Paris")
-            expect(!sam.isExplored(paris), "Sam must NOT see Paris uncovered")
-            expect(!sam.hasExploredAnywhere, "Sam's map must still be empty")
+            expect(mine.isExplored(paris), "I should have uncovered Paris")
+            expect(!theirs.isExplored(paris), "a friend must NOT see Paris uncovered")
+            expect(!theirs.hasExploredAnywhere, "their map must still be empty")
 
             // And it holds after both are reloaded from disk.
-            let samAgain = ExplorationStore(explorerID: "sam-2", directory: scratch)
-            expect(!samAgain.isExplored(paris), "Sam must still not see Paris after a reload")
+            let theirsAgain = ExplorationStore(explorerID: "friend-2", directory: scratch)
+            expect(!theirsAgain.isExplored(paris), "still not uncovered for them after a reload")
         }
 
         test("fixes closer together than the spacing do not pile up breadcrumbs") {
@@ -99,7 +100,7 @@ enum LogicTests {
             expect(second.placesDiscovered == 1, "expected visits to persist")
         }
 
-        test("resetting clouds one explorer over without touching another") {
+        test("resetting clouds one map over without touching any other") {
             let a = ExplorationStore(explorerID: "reset-a", directory: scratch)
             let b = ExplorationStore(explorerID: "reset-b", directory: scratch)
             a.record(CLLocation(latitude: paris.latitude, longitude: paris.longitude))

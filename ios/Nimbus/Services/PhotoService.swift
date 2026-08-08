@@ -8,9 +8,17 @@ import Foundation
 /// backend (Supabase, Firebase, anything) without touching a single view.
 protocol PhotoService {
     func health() async -> Bool
+
+    /// Announce this device's identity and get back its friend code and current
+    /// friends. Safe to call on every launch; it doubles as a rename.
+    func register(_ explorer: Explorer) async throws -> RegistrationResponse
+    func friends(of viewerID: String) async throws -> [RemoteUser]
+    func addFriend(code: String, for viewerID: String) async throws -> AddFriendResponse
+
     func nearby(coordinate: CLLocationCoordinate2D, viewerID: String) async throws -> NearbyResult
     func photos(inLatitudes latitudes: ClosedRange<Double>,
-                longitudes: ClosedRange<Double>) async throws -> [Photo]
+                longitudes: ClosedRange<Double>,
+                viewerID: String) async throws -> [Photo]
     func upload(imageData: Data,
                 coordinate: CLLocationCoordinate2D,
                 caption: String,
@@ -57,6 +65,31 @@ final class NimbusAPI: PhotoService {
         }
     }
 
+    func register(_ explorer: Explorer) async throws -> RegistrationResponse {
+        try await post(
+            "users",
+            body: [
+                "id": explorer.id,
+                "displayName": explorer.displayName,
+                "color": explorer.colorHex,
+            ]
+        )
+    }
+
+    func friends(of viewerID: String) async throws -> [RemoteUser] {
+        var components = URLComponents(
+            url: baseURL.appendingPathComponent("friends"),
+            resolvingAgainstBaseURL: false
+        )!
+        components.queryItems = [URLQueryItem(name: "userId", value: viewerID)]
+        let response: FriendListResponse = try await get(components.url!)
+        return response.friends
+    }
+
+    func addFriend(code: String, for viewerID: String) async throws -> AddFriendResponse {
+        try await post("friends", body: ["userId": viewerID, "code": code])
+    }
+
     func nearby(coordinate: CLLocationCoordinate2D, viewerID: String) async throws -> NearbyResult {
         var components = URLComponents(
             url: baseURL.appendingPathComponent("photos/nearby"),
@@ -71,7 +104,8 @@ final class NimbusAPI: PhotoService {
     }
 
     func photos(inLatitudes latitudes: ClosedRange<Double>,
-                longitudes: ClosedRange<Double>) async throws -> [Photo] {
+                longitudes: ClosedRange<Double>,
+                viewerID: String) async throws -> [Photo] {
         var components = URLComponents(
             url: baseURL.appendingPathComponent("photos/bbox"),
             resolvingAgainstBaseURL: false
@@ -81,6 +115,8 @@ final class NimbusAPI: PhotoService {
             URLQueryItem(name: "maxLat", value: String(latitudes.upperBound)),
             URLQueryItem(name: "minLon", value: String(longitudes.lowerBound)),
             URLQueryItem(name: "maxLon", value: String(longitudes.upperBound)),
+            // Without this the server would hand back everybody's photographs.
+            URLQueryItem(name: "viewerId", value: viewerID),
         ]
         let response: PhotoListResponse = try await get(components.url!)
         return response.photos
@@ -116,6 +152,14 @@ final class NimbusAPI: PhotoService {
 
     private func get<T: Decodable>(_ url: URL) async throws -> T {
         try await send(URLRequest(url: url))
+    }
+
+    private func post<T: Decodable>(_ path: String, body: [String: Any]) async throws -> T {
+        var request = URLRequest(url: baseURL.appendingPathComponent(path))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        return try await send(request)
     }
 
     private func send<T: Decodable>(_ request: URLRequest) async throws -> T {

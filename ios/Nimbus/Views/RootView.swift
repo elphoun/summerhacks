@@ -48,7 +48,13 @@ struct RootView: View {
                     }
                 }
             case .history:
-                HistorySheet(model: model, close: closeSheet)
+                HistorySheet(model: model, close: closeSheet) {
+                    // Same dance as the capture sheet: one item-based sheet
+                    // cannot be swapped straight for another.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { sheet = .friends }
+                }
+            case .friends:
+                FriendsSheet(model: model, close: closeSheet)
             case .nearby(let presentation):
                 NearbySheet(presentation: presentation, close: closeSheet)
             case .photo(let photo):
@@ -69,24 +75,8 @@ struct RootView: View {
 
     private var topBar: some View {
         HStack(alignment: .top, spacing: 10) {
-            Menu {
-                Section("Switch explorer") {
-                    ForEach(Explorer.roster) { person in
-                        Button {
-                            model.switchExplorer(to: person)
-                        } label: {
-                            Label(
-                                person.displayName,
-                                systemImage: person.id == model.explorer.id ? "checkmark.circle.fill" : "person.circle"
-                            )
-                        }
-                    }
-                }
-                Button {
-                    sheet = .history
-                } label: {
-                    Label("Exploration history", systemImage: "clock.arrow.circlepath")
-                }
+            Button {
+                sheet = .friends
             } label: {
                 HStack(spacing: 9) {
                     ExplorerAvatar(explorer: model.explorer)
@@ -94,16 +84,17 @@ struct RootView: View {
                         Text(model.explorer.displayName)
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundStyle(.white)
-                        Text("your private map")
+                        Text(friendsLabel)
                             .font(.system(size: 11))
                             .foregroundStyle(Theme.secondaryText)
                     }
-                    Image(systemName: "chevron.down")
+                    Image(systemName: "chevron.right")
                         .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(Theme.secondaryText)
                 }
                 .glassPanel(cornerRadius: 22, padding: 8)
             }
+            .buttonStyle(.plain)
 
             Spacer(minLength: 0)
 
@@ -128,6 +119,14 @@ struct RootView: View {
             }
         }
         .padding(.top, 6)
+    }
+
+    private var friendsLabel: String {
+        switch model.friends.count {
+        case 0: "no friends yet"
+        case 1: "1 friend"
+        default: "\(model.friends.count) friends"
+        }
     }
 
     private var statsPill: some View {
@@ -252,6 +251,7 @@ enum ActiveSheet: Identifiable {
     case travel
     case capture
     case history
+    case friends
     case nearby(NearbyPresentation)
     case photo(Photo)
 
@@ -260,6 +260,7 @@ enum ActiveSheet: Identifiable {
         case .travel: "travel"
         case .capture: "capture"
         case .history: "history"
+        case .friends: "friends"
         case .nearby(let presentation): "nearby-\(presentation.id)"
         case .photo(let photo): "photo-\(photo.id)"
         }
