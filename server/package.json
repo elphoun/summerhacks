@@ -1,0 +1,16 @@
+{
+  "name": "nimbus-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared place-memory store for Nimbus. Zero dependencies: node:http + node:sqlite.",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "seed": "node seed.js",
+    "reseed": "node seed.js --reset",
+    "test": "node --test"
+  }
+}

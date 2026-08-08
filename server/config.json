@@ -1,0 +1,7 @@
+{
+  "port": 8788,
+  "primaryRadiusM": 100,
+  "fallbackRadiusM": 250,
+  "minResults": 3,
+  "maxUploadBytes": 12000000
+}
