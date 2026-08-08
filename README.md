@@ -47,20 +47,20 @@ To run on a physical phone, set `NIMBUS_SERVER` to your Mac's LAN address in the
 
 ## The demo, in order
 
-1. **Open the app.** The whole world is under cloud. Tap the chip top-left: that is you, with a friend code, and eight sample people already added as friends so there is something to find.
-2. **Travel** → tap *Eiffel Tower*. The map flies there, and a short walk uncovers a few streets. Watch the cloud burn off along the path.
+1. **Open the app.** The **Friends** tab is you: your name, your friend code, and eight sample people already added so there is something to find. The **Map** tab is the whole world, under cloud.
+2. **Map** → **Travel** → tap *Eiffel Tower*. The map flies there, and a short walk uncovers a few streets. Watch the cloud burn off along the path.
 3. **Camera** → *Use a sample shot* → add a note → *Leave this photo here*.
 4. **Six of your friends have stood here.** Their photos are all within 100m. Tap one — Julien Rocher, 27m away, last March.
 5. **Travel** → *Griffith Observatory*, then take another photo. This time the sheet says **widened**: fewer than three memories within 100m, so the search expanded to 250m. That is the fallback firing, visibly.
 6. **Pan to somewhere you have not been.** The top-right reads *"N still under cloud"* — your friends' photos are there, the map knows it, and it will not show them until you have earned that ground. **This is the point of the whole thing.**
-7. *History* → *Cloud this map over again* clouds your map back over without deleting a single photo or dropping a friend. Handy for a second run-through.
+7. **Map** → *History* → *Cloud this map over again* clouds your map back over without deleting a single photo or dropping a friend. Handy for a second run-through.
 
 ### Showing the friends half properly
 
 That needs two identities, which means two devices — the identity lives in the app container, so a second simulator is a second person.
 
 1. Boot a second simulator and run the app there. It comes up as its own explorer with its own code and its own fully clouded map.
-2. Read one device's code off the top-left chip and type it into the other's *Add a friend* field. Friendship is mutual and takes effect in both directions at once.
+2. Read one device's code off its **Friends** tab and type it into the other's *Add a friend* field. Friendship is mutual and takes effect in both directions at once.
 3. Walk the second device to the Eiffel Tower and take a photo. Each one now finds the other's photograph sitting among the samples — and neither map has uncovered so much as a street for the other.
 
 ---

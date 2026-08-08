@@ -131,6 +131,38 @@ final class ExplorationStore: ObservableObject {
 
     var mostRecentVisits: [Visit] { visits.sorted { $0.firstSeen > $1.firstSeen } }
 
+    /// Straight-line distance covered between consecutive breadcrumbs — an
+    /// underestimate of the true path, but a real one, not a guess.
+    var totalDistanceM: Double {
+        guard points.count > 1 else { return 0 }
+        var total = 0.0
+        for i in 1..<points.count {
+            let a = CLLocation(latitude: points[i - 1].latitude, longitude: points[i - 1].longitude)
+            let b = CLLocation(latitude: points[i].latitude, longitude: points[i].longitude)
+            total += a.distance(from: b)
+        }
+        return total
+    }
+
+    /// A rough step count from distance covered, at an average stride of 0.75m.
+    var estimatedSteps: Int { Int(totalDistanceM / 0.75) }
+
+    /// Consecutive calendar days of exploration, counting back from the most
+    /// recent day something was uncovered.
+    var streakDays: Int {
+        guard !points.isEmpty else { return 0 }
+        let calendar = Calendar.current
+        let days = Set(points.map { calendar.startOfDay(for: $0.discoveredAt) }).sorted(by: >)
+        guard var cursor = days.first else { return 0 }
+        var streak = 1
+        for day in days.dropFirst() {
+            guard let expected = calendar.date(byAdding: .day, value: -1, to: cursor), day == expected else { break }
+            streak += 1
+            cursor = day
+        }
+        return streak
+    }
+
     // MARK: Internals
 
     private func isTooCloseToExistingPoint(_ coordinate: CLLocationCoordinate2D) -> Bool {
