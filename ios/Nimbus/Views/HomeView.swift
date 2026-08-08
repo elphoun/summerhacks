@@ -30,24 +30,17 @@ struct HomeView: View {
     private var header: some View {
         HStack(alignment: .center, spacing: 10) {
             Spacer(minLength: 0)
-            HStack(spacing: 8) {
-                Text("🌲")
-                Text("WANDER")
-                    .font(.system(size: 28, weight: .heavy, design: .rounded))
-                    .kerning(0.5)
-                    .foregroundStyle(WanderTheme.warm)
-                    .shadow(color: WanderTheme.textPrimary.opacity(0.35), radius: 0, x: 1.5, y: 1.5)
-                Text("🌲")
-            }
+            Image("WanderLogo")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(height: 130)
             Spacer(minLength: 0)
         }
         .overlay(alignment: .trailing) {
             Button {
                 sheet = .history
             } label: {
-                Image(systemName: "gearshape.fill")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(WanderTheme.textPrimary)
+                PixelIcon(glyph: .gear, size: 18, color: WanderTheme.textPrimary)
                     .frame(width: 42, height: 42)
                     .wanderCard(cornerRadius: 13, padding: 0)
             }
@@ -62,17 +55,23 @@ struct HomeView: View {
             ExplorerAvatar(explorer: model.explorer, size: 52)
             VStack(alignment: .leading, spacing: 4) {
                 Text("Welcome back, \(firstName)!")
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .font(.wander(18, weight: .bold))
                     .foregroundStyle(WanderTheme.textPrimary)
                 HStack(spacing: 8) {
-                    Label("\(model.exploration.streakDays) day streak", systemImage: "flame.fill")
-                        .foregroundStyle(WanderTheme.warm)
+                    HStack(spacing: 4) {
+                        PixelIcon(glyph: .flame, size: 13, color: WanderTheme.warm)
+                        Text("\(model.exploration.streakDays) day streak")
+                            .foregroundStyle(WanderTheme.warm)
+                    }
                     Text("|")
                         .foregroundStyle(WanderTheme.hairline)
-                    Label("\(model.exploration.estimatedSteps.formatted()) steps", systemImage: "shoeprints.fill")
-                        .foregroundStyle(WanderTheme.accent)
+                    HStack(spacing: 4) {
+                        PixelIcon(glyph: .steps, size: 13, color: WanderTheme.accent)
+                        Text("\(model.exploration.estimatedSteps.formatted()) steps")
+                            .foregroundStyle(WanderTheme.accent)
+                    }
                 }
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .font(.wander(13, weight: .semibold))
             }
             Spacer(minLength: 0)
         }
@@ -98,19 +97,22 @@ struct HomeView: View {
             onRegionChange: { region in model.regionChanged(region) }
         )
         .frame(height: 380)
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .clipShape(PixelRoundedRect(radius: 28, steps: 3))
         .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(WanderTheme.textPrimary.opacity(0.18), lineWidth: 3)
+            PixelRoundedRect(radius: 28, steps: 3)
+                .stroke(WanderTheme.textPrimary, lineWidth: 5)
+        )
+        .overlay(
+            PixelRoundedRect(radius: 24, steps: 3)
+                .inset(by: 5)
+                .stroke(WanderTheme.warm.opacity(0.85), lineWidth: 2)
         )
         .shadow(color: WanderTheme.shadow, radius: 12, y: 6)
         .overlay(alignment: .bottomTrailing) {
             Button {
                 model.centreOnMe()
             } label: {
-                Image(systemName: "location.circle.fill")
-                    .font(.system(size: 30))
-                    .foregroundStyle(WanderTheme.warm)
+                PixelIcon(glyph: .locationPin, size: 30, color: WanderTheme.warm)
                     .background(Circle().fill(WanderTheme.panel).padding(3))
                     .shadow(color: WanderTheme.shadow, radius: 6, y: 3)
             }
@@ -123,11 +125,11 @@ struct HomeView: View {
 
     private var statsRow: some View {
         HStack(spacing: 0) {
-            statItem(icon: "tree.fill", tint: WanderTheme.accent, title: "Places\nDiscovered", value: "\(model.exploration.placesDiscovered)")
+            statItem(icon: .seedling, tint: WanderTheme.accent, title: "Places\nDiscovered", value: "\(model.exploration.placesDiscovered)")
             divider
-            statItem(icon: "camera.fill", tint: WanderTheme.secondaryText, title: "Photos\nTaken", value: "\(model.exploration.photosLeft)")
+            statItem(icon: .camera, tint: WanderTheme.secondaryText, title: "Photos\nTaken", value: "\(model.exploration.photosLeft)")
             divider
-            statItem(icon: "mappin.circle.fill", tint: WanderTheme.warm, title: "Distance\nExplored", value: model.exploration.totalDistanceM.metresLabel)
+            statItem(icon: .locationPin, tint: WanderTheme.warm, title: "Distance\nExplored", value: model.exploration.totalDistanceM.metresLabel)
         }
         .wanderCard(cornerRadius: 20, padding: 16)
     }
@@ -136,16 +138,14 @@ struct HomeView: View {
         Divider().overlay(WanderTheme.hairline).padding(.vertical, 4)
     }
 
-    private func statItem(icon: String, tint: Color, title: String, value: String) -> some View {
+    private func statItem(icon: PixelGlyph, tint: Color, title: String, value: String) -> some View {
         VStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 20))
-                .foregroundStyle(tint)
+            PixelIcon(glyph: icon, size: 22, color: tint)
             Text(value)
-                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .font(.wander(15, weight: .bold))
                 .foregroundStyle(WanderTheme.textPrimary)
             Text(title)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.wander(11, weight: .semibold))
                 .foregroundStyle(WanderTheme.secondaryText)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
@@ -162,18 +162,16 @@ struct HomeView: View {
     private var recentAdventures: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 8) {
-                Text("🍃")
                 Text("RECENT ADVENTURES")
-                    .font(.system(size: 14, weight: .heavy, design: .rounded))
+                    .font(.wander(14, weight: .heavy))
                     .kerning(0.5)
                     .foregroundStyle(WanderTheme.textPrimary)
-                Text("🍃")
             }
             .frame(maxWidth: .infinity)
 
             if recentPhotos.isEmpty {
                 Text("Nothing left behind yet — go take a photo somewhere you've uncovered.")
-                    .font(.system(size: 13))
+                    .font(.wander(13))
                     .foregroundStyle(WanderTheme.secondaryText)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
@@ -196,9 +194,7 @@ struct HomeView: View {
                     Button {
                         sheet = .history
                     } label: {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(WanderTheme.textPrimary)
+                        PixelIcon(glyph: .chevronRight, size: 14, color: WanderTheme.textPrimary)
                             .frame(width: 34, height: 34)
                             .background(Circle().fill(WanderTheme.panelSoft))
                     }

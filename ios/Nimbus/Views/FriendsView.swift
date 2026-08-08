@@ -28,10 +28,10 @@ struct FriendsView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Friends")
-                .font(.system(size: 26, weight: .heavy, design: .rounded))
+                .font(.wander(26, weight: .heavy))
                 .foregroundStyle(WanderTheme.textPrimary)
             Text("Everyone shares the same world, but nobody sees a place until they've stood there themselves.")
-                .font(.system(size: 13))
+                .font(.wander(13))
                 .foregroundStyle(WanderTheme.secondaryText)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -46,21 +46,17 @@ struct FriendsView: View {
                 ExplorerAvatar(explorer: person, size: 46)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(person.displayName)
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .font(.wander(16, weight: .bold))
                         .foregroundStyle(WanderTheme.textPrimary)
                     Text(isActive ? "This is you right now" : "Tap to explore as \(person.displayName.split(separator: " ").first ?? "them")")
-                        .font(.system(size: 12))
+                        .font(.wander(12))
                         .foregroundStyle(WanderTheme.secondaryText)
                 }
                 Spacer(minLength: 0)
                 if isActive {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 20))
-                        .foregroundStyle(WanderTheme.accent)
+                    PixelIcon(glyph: .checkmarkCircle, size: 20, color: WanderTheme.accent)
                 } else {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(WanderTheme.secondaryText.opacity(0.6))
+                    PixelIcon(glyph: .chevronRight, size: 13, color: WanderTheme.secondaryText.opacity(0.6))
                 }
             }
             .wanderCard(cornerRadius: 18, padding: 14, fill: isActive ? WanderTheme.panelSoft : WanderTheme.panel)

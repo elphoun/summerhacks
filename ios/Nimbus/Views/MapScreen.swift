@@ -72,9 +72,7 @@ struct MapScreen: View {
                             .font(.system(size: 11))
                             .foregroundStyle(Theme.secondaryText)
                     }
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(Theme.secondaryText)
+                    PixelIcon(glyph: .chevronDown, size: 11, color: Theme.secondaryText)
                 }
                 .glassPanel(cornerRadius: 22, padding: 8)
             }
@@ -84,20 +82,26 @@ struct MapScreen: View {
             VStack(alignment: .trailing, spacing: 6) {
                 statsPill
                 if model.hiddenPhotoCount > 0 {
-                    Label("\(model.hiddenPhotoCount) still under cloud", systemImage: "cloud.fill")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(Theme.secondaryText)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(.ultraThinMaterial, in: Capsule())
+                    HStack(spacing: 5) {
+                        PixelIcon(glyph: .cloud, size: 12, color: Theme.secondaryText)
+                        Text("\(model.hiddenPhotoCount) still under cloud")
+                    }
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Theme.secondaryText)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(.ultraThinMaterial, in: Capsule())
                 }
                 if model.serverReachable == false {
-                    Label("server offline", systemImage: "wifi.slash")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(Theme.warm)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(.ultraThinMaterial, in: Capsule())
+                    HStack(spacing: 5) {
+                        PixelIcon(glyph: .wifi, size: 12, color: Theme.warm)
+                        Text("server offline")
+                    }
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Theme.warm)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(.ultraThinMaterial, in: Capsule())
                 }
             }
         }
@@ -136,9 +140,7 @@ struct MapScreen: View {
                 Button {
                     model.centreOnMe()
                 } label: {
-                    Image(systemName: "location.fill")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.white)
+                    PixelIcon(glyph: .locationPin, size: 17, color: .white)
                         .frame(width: 40, height: 40)
                         .background(.ultraThinMaterial, in: Circle())
                         .overlay(Circle().stroke(Theme.hairline, lineWidth: 1))
@@ -147,26 +149,27 @@ struct MapScreen: View {
             }
 
             if model.isTravelling {
-                Label("moving — clouds burning off", systemImage: "figure.walk")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(.ultraThinMaterial, in: Capsule())
-                    .transition(.scale.combined(with: .opacity))
+                HStack(spacing: 6) {
+                    PixelIcon(glyph: .person, size: 13, color: .white)
+                    Text("moving — clouds burning off")
+                }
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(.ultraThinMaterial, in: Capsule())
+                .transition(.scale.combined(with: .opacity))
             }
 
             HStack(spacing: 14) {
-                CircleGlassButton(systemImage: "airplane.departure", label: "Travel") {
+                CircleGlassButton(glyph: .planeDeparture, label: "Travel") {
                     sheet = .travel
                 }
 
                 Button {
                     sheet = .capture
                 } label: {
-                    Image(systemName: "camera.fill")
-                        .font(.system(size: 26, weight: .semibold))
-                        .foregroundStyle(Theme.background)
+                    PixelIcon(glyph: .camera, size: 28, color: Theme.background)
                         .frame(width: 74, height: 74)
                         .background(
                             Circle().fill(
@@ -181,7 +184,7 @@ struct MapScreen: View {
                 }
                 .buttonStyle(.plain)
 
-                CircleGlassButton(systemImage: "clock.arrow.circlepath", label: "History") {
+                CircleGlassButton(glyph: .clock, label: "History") {
                     sheet = .history
                 }
             }

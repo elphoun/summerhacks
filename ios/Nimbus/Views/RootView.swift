@@ -69,7 +69,7 @@ struct RootView: View {
     private var banner: some View {
         if let banner = model.banner {
             Text(banner.text)
-                .font(.system(size: 13, weight: .medium))
+                .font(.wander(13, weight: .medium))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(banner.isError ? WanderTheme.warm : WanderTheme.textPrimary)
                 .wanderCard(cornerRadius: 14, padding: 14)

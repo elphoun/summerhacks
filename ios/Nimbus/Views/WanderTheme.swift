@@ -1,5 +1,22 @@
 import SwiftUI
 
+/// Manrope, the typeface for every non-map screen. Bundled as static weights
+/// (see Info.plist's UIAppFonts) rather than the variable font, so SwiftUI's
+/// name-based `Font.custom` resolves a specific weight reliably.
+extension Font {
+    static func wander(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
+        let name: String
+        switch weight {
+        case .heavy, .black: name = "Manrope-ExtraBold"
+        case .bold: name = "Manrope-Bold"
+        case .semibold: name = "Manrope-SemiBold"
+        case .medium: name = "Manrope-Medium"
+        default: name = "Manrope-Regular"
+        }
+        return .custom(name, size: size)
+    }
+}
+
 /// The light, illustrated palette used by every screen except the map itself —
 /// home, friends, stats, and the sheets they open. The map screen keeps
 /// `Theme` (dark glass) untouched, so this lives alongside it rather than
@@ -25,9 +42,9 @@ struct WanderCard: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding(padding)
-            .background(fill, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .background(fill, in: PixelRoundedRect(radius: cornerRadius, steps: 2))
             .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                PixelRoundedRect(radius: cornerRadius, steps: 2)
                     .stroke(WanderTheme.hairline, lineWidth: 1.5)
             )
             .shadow(color: WanderTheme.shadow, radius: 10, y: 5)
@@ -54,11 +71,11 @@ struct WanderTabBar: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            tabButton(.home, systemImage: "house.fill", label: "Home")
-            tabButton(.map, systemImage: "map.fill", label: "Map")
+            tabButton(.home, glyph: .home, label: "Home")
+            tabButton(.map, glyph: .map, label: "Map")
             cameraButton
-            tabButton(.friends, systemImage: "person.2.fill", label: "Friends")
-            tabButton(.stats, systemImage: "chart.bar.fill", label: "Stats")
+            tabButton(.friends, glyph: .users, label: "Friends")
+            tabButton(.stats, glyph: .chartBar, label: "Stats")
         }
         .padding(.horizontal, 12)
         .padding(.top, 10)
@@ -71,18 +88,17 @@ struct WanderTabBar: View {
         }
     }
 
-    private func tabButton(_ value: WanderTab, systemImage: String, label: String) -> some View {
+    private func tabButton(_ value: WanderTab, glyph: PixelGlyph, label: String) -> some View {
         let isActive = tab == value
         return Button {
             tab = value
         } label: {
             VStack(spacing: 4) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 21, weight: .semibold))
+                PixelIcon(glyph: glyph, size: 21, color: isActive ? WanderTheme.accent : WanderTheme.secondaryText)
                 Text(label)
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .font(.wander(11, weight: .semibold))
+                    .foregroundStyle(isActive ? WanderTheme.accent : WanderTheme.secondaryText)
             }
-            .foregroundStyle(isActive ? WanderTheme.accent : WanderTheme.secondaryText)
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)
@@ -90,9 +106,7 @@ struct WanderTabBar: View {
 
     private var cameraButton: some View {
         Button(action: onCapture) {
-            Image(systemName: "camera.fill")
-                .font(.system(size: 23, weight: .semibold))
-                .foregroundStyle(WanderTheme.textPrimary)
+            PixelIcon(glyph: .camera, size: 24, color: WanderTheme.textPrimary)
                 .frame(width: 60, height: 60)
                 .background(Circle().fill(WanderTheme.panel))
                 .overlay(Circle().stroke(WanderTheme.textPrimary.opacity(0.55), lineWidth: 2.5))

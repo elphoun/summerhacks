@@ -34,7 +34,7 @@ struct TravelSheet: View {
                                     .foregroundStyle(WanderTheme.secondaryText)
                             }
                         } icon: {
-                            Image(systemName: "figure.walk").foregroundStyle(WanderTheme.accent)
+                            PixelIcon(glyph: .person, size: 17, color: WanderTheme.accent)
                         }
                     }
                     .disabled(model.isTravelling)
@@ -69,13 +69,15 @@ struct TravelSheet: View {
                                 Spacer()
                                 VStack(alignment: .trailing, spacing: 2) {
                                     Text(distanceLabel(to: place))
-                                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                                        .font(.wander(12, weight: .medium))
                                         .foregroundStyle(WanderTheme.secondaryText)
                                     if model.exploration.isExplored(place.coordinate) {
-                                        Label("uncovered", systemImage: "checkmark.circle.fill")
-                                            .labelStyle(.titleAndIcon)
-                                            .font(.system(size: 10, weight: .semibold))
-                                            .foregroundStyle(WanderTheme.accent)
+                                        HStack(spacing: 3) {
+                                            PixelIcon(glyph: .checkmarkCircle, size: 11, color: WanderTheme.accent)
+                                            Text("uncovered")
+                                        }
+                                        .font(.wander(10, weight: .semibold))
+                                        .foregroundStyle(WanderTheme.accent)
                                     }
                                 }
                             }

@@ -20,7 +20,7 @@ struct PhotoDetailView: View {
 
                     if !photo.caption.isEmpty {
                         Text(photo.caption)
-                            .font(.system(size: 17, weight: .medium))
+                            .font(.wander(17, weight: .medium))
                             .foregroundStyle(WanderTheme.textPrimary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -33,10 +33,10 @@ struct PhotoDetailView: View {
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(photo.displayName)
-                                .font(.system(size: 15, weight: .semibold))
+                                .font(.wander(15, weight: .semibold))
                                 .foregroundStyle(WanderTheme.textPrimary)
                             Text(photo.takenDate.formatted(date: .long, time: .shortened))
-                                .font(.system(size: 12))
+                                .font(.wander(12))
                                 .foregroundStyle(WanderTheme.secondaryText)
                         }
                         Spacer()
@@ -72,11 +72,11 @@ struct PhotoDetailView: View {
     private func detailRow(_ label: String, _ value: String) -> some View {
         HStack {
             Text(label)
-                .font(.system(size: 13))
+                .font(.wander(13))
                 .foregroundStyle(WanderTheme.secondaryText)
             Spacer()
             Text(value)
-                .font(.system(size: 13, weight: .medium))
+                .font(.wander(13, weight: .medium))
                 .foregroundStyle(WanderTheme.textPrimary)
         }
         .padding(.horizontal, 12)

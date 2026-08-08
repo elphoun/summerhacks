@@ -33,8 +33,7 @@ struct HistorySheet: View {
                                 Text(person.displayName).foregroundStyle(WanderTheme.textPrimary)
                                 Spacer()
                                 if person.id == model.explorer.id {
-                                    Image(systemName: "checkmark")
-                                        .foregroundStyle(WanderTheme.accent)
+                                    PixelIcon(glyph: .checkmark, size: 15, color: WanderTheme.accent)
                                 }
                             }
                         }
@@ -71,7 +70,11 @@ struct HistorySheet: View {
                     Button(role: .destructive) {
                         confirmingReset = true
                     } label: {
-                        Label("Cloud this map over again", systemImage: "cloud.fill")
+                        Label {
+                            Text("Cloud this map over again")
+                        } icon: {
+                            PixelIcon(glyph: .cloud, size: 15, color: .red)
+                        }
                     }
                 } header: {
                     Text("Demo")
@@ -110,10 +113,10 @@ struct HistorySheet: View {
     private func statTile(_ value: String, _ caption: String) -> some View {
         VStack(spacing: 4) {
             Text(value)
-                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .font(.wander(20, weight: .bold))
                 .foregroundStyle(WanderTheme.textPrimary)
             Text(caption)
-                .font(.system(size: 11))
+                .font(.wander(11))
                 .foregroundStyle(WanderTheme.secondaryText)
         }
         .frame(maxWidth: .infinity)
