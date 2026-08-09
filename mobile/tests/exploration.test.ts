@@ -8,7 +8,6 @@
 // scratch dictionary in memory — no device, no simulator, no network.
 
 import { Coordinate, offset } from '../src/geo';
-import { nearestPlace } from '../src/model/place';
 import { ExplorationStore } from '../src/services/explorationStore';
 import { KeyValueStore, memoryStore } from '../src/services/storage';
 
@@ -76,9 +75,9 @@ test('walking a route leaves a trail of breadcrumbs', () => {
   expect(store.isExplored(offset(PARIS, 900, 90))).toBe(true);
 });
 
-// Naming a coordinate (reverse geocoding, or matching a hardcoded landmark)
-// is AppModel's job, not the store's — it is async and network-bound. The
-// store only has to dedupe and persist whatever it is told.
+// Naming a coordinate (reverse geocoding) is AppModel's job, not the store's
+// — it is async and network-bound. The store only has to dedupe and persist
+// whatever it is told.
 test('noting the same place twice only records one visit', () => {
   const store = storeFor('visits');
 
@@ -122,10 +121,4 @@ test('uncovered area is reported in a sane range', () => {
   // anything in this window is the right order of magnitude.
   expect(store.uncoveredAreaKm2).toBeGreaterThan(0.01);
   expect(store.uncoveredAreaKm2).toBeLessThan(0.5);
-});
-
-test('landmark lookup only claims a place you are actually at', () => {
-  expect(nearestPlace(PARIS)?.name).toBe('Eiffel Tower');
-  expect(nearestPlace(offset(PARIS, 5_000, 45))).toBeNull();
-  expect(nearestPlace({ latitude: -40, longitude: -130 })).toBeNull();
 });

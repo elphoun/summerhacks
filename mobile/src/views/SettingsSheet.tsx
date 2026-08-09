@@ -1,14 +1,12 @@
 import React from 'react';
-import { Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Switch, View } from 'react-native';
 
-import { distanceM } from '../geo';
-import { PLACES, Place } from '../model/place';
 import { backendAddress, backendKind } from '../services/backend';
 import { useAppModel } from '../state/useAppModel';
 import { Row, RowCaption, RowTitle, Section } from '../ui/ListSection';
 import { PixelIcon } from '../ui/PixelIcon';
 import { Sheet } from '../ui/Sheet';
-import { WanderTheme, wanderFont } from '../ui/theme';
+import { WanderTheme } from '../ui/theme';
 
 /**
  * Simulated travel and the handful of things a demo needs, in one place.
@@ -32,18 +30,6 @@ export function SettingsSheet({ visible, close }: { visible: boolean; close: () 
   const closeThen = (action: () => void) => {
     close();
     setTimeout(action, 250);
-  };
-
-  // Nearest first — the list doubles as "what is close to me right now".
-  const here = model.location;
-  const sortedPlaces = here
-    ? [...PLACES].sort((a, b) => distanceM(here, a) - distanceM(here, b))
-    : PLACES;
-
-  const distanceLabel = (place: Place) => {
-    if (!here) return '';
-    const metres = distanceM(here, place);
-    return metres < 1000 ? `${Math.trunc(metres)} m` : `${Math.trunc(metres / 1000)} km`;
   };
 
   const confirmReset = () => {
@@ -103,34 +89,6 @@ export function SettingsSheet({ visible, close }: { visible: boolean; close: () 
           </Row>
         </Section>
 
-        <Section header="Travel somewhere">
-          {sortedPlaces.map((place) => (
-            <Row key={place.id} onPress={() => closeThen(() => model.travelToPlace(place))}>
-              <View style={styles.placeRow}>
-                <View style={styles.labelText}>
-                  <RowTitle>{place.name}</RowTitle>
-                  <RowCaption>
-                    {place.city}, {place.country}
-                  </RowCaption>
-                </View>
-                <View style={styles.placeTrailing}>
-                  <Text style={[wanderFont(12, 'medium'), styles.secondary]}>
-                    {distanceLabel(place)}
-                  </Text>
-                  {model.exploration.isExplored(place) ? (
-                    <View style={styles.uncovered}>
-                      <PixelIcon glyph="checkmarkCircle" size={11} color={WanderTheme.accent} />
-                      <Text style={[wanderFont(10, 'semibold'), { color: WanderTheme.accent }]}>
-                        uncovered
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
-              </View>
-            </Row>
-          ))}
-        </Section>
-
         <Section
           header="Reset"
           footer={`Resets only what you have uncovered. Photos left in the world are not deleted, and your friends are kept.\n\n${backendKind === 'supabase' ? 'Supabase' : 'Server'}: ${backendAddress()}`}>
@@ -151,8 +109,4 @@ const styles = StyleSheet.create({
   labelled: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   labelText: { flex: 1, gap: 2 },
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  placeRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  placeTrailing: { alignItems: 'flex-end', gap: 2 },
-  uncovered: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  secondary: { color: WanderTheme.secondaryText },
 });

@@ -1,7 +1,6 @@
 import { Coordinate, distanceM } from '../geo';
 import { Explorer, LocalIdentity, RemoteUser } from '../model/explorer';
 import { NearbyResult, Photo, photoCoordinate } from '../model/photo';
-import { Place, homePlace, nearestPlace } from '../model/place';
 import { backendUnreachableAdvice, createPhotoService } from '../services/backend';
 import { ExplorationStore, ExploredPoint } from '../services/explorationStore';
 import { reverseGeocode } from '../services/geocoding';
@@ -39,6 +38,15 @@ export interface MapRegion {
 
 /** Close enough to read street names, which is what "nearby" should look like by default. */
 const DEFAULT_ZOOM_M = 600;
+
+/**
+ * Where the map opens before any real location is known — a fresh install
+ * with no fix yet, or real GPS denied with nothing simulated to fall back
+ * on. Not a destination or a feature, just somewhere to point the camera
+ * other than null island; real GPS (the default) overtakes it the moment
+ * the first fix arrives.
+ */
+const DEFAULT_START: Coordinate = { latitude: 37.8199, longitude: -122.4783 };
 
 /**
  * How far you have to move, and how long to wait, before checking whether
@@ -159,10 +167,10 @@ export class AppModel {
 
     this.explorationPoints = exploration.points;
 
-    // Pick up where this device left off, or open on the starting landmark if
-    // the map has never been anywhere. Real GPS (the default) overtakes this
-    // the moment the first fix arrives.
-    const start = exploration.lastCoordinate ?? homePlace;
+    // Pick up where this device left off, or open on the default starting
+    // point if the map has never been anywhere. Real GPS (the default)
+    // overtakes this the moment the first fix arrives.
+    const start = exploration.lastCoordinate ?? DEFAULT_START;
     this.simulated.jump(start);
     this.focusMap(start, DEFAULT_ZOOM_M, false);
     this.switchProvider();
@@ -236,17 +244,11 @@ export class AppModel {
   // MARK: Places
 
   /**
-   * A named place for `coordinate` — one of the curated landmarks if you are
-   * standing at one (instant, free), otherwise whatever the device's own
-   * geocoder makes of it. Caches the last geocode, since capture and the
-   * visit check both ask for wherever you currently are.
+   * A named place for `coordinate`, from the device's own geocoder. Caches
+   * the last geocode, since capture and the visit check both ask for
+   * wherever you currently are.
    */
   private async resolvePlace(coordinate: Coordinate): Promise<ResolvedPlace | null> {
-    const landmark = nearestPlace(coordinate);
-    if (landmark) {
-      return { id: landmark.id, name: landmark.name, city: landmark.city, country: landmark.country };
-    }
-
     if (
       this.geocodeCache &&
       distanceM(coordinate, this.geocodeCache.coordinate) < PLACE_CACHE_RADIUS_M
@@ -321,10 +323,6 @@ export class AppModel {
     });
   }
 
-  travelToPlace(place: Place): void {
-    this.travel(place, place.name);
-  }
-
   /** Mill about where you already are, uncovering a few more streets. */
   wanderHere(): void {
     if (this.isTravelling) return;
@@ -339,8 +337,8 @@ export class AppModel {
   /**
    * Hand control from real GPS to the simulator, starting it from wherever
    * that real GPS fix last put you — not wherever the simulator was last
-   * left (`homePlace`, on a fresh install), which is what made "walk around
-   * here" wander a stale city on the other side of the world.
+   * left (`DEFAULT_START`, on a fresh install), which is what made "walk
+   * around here" wander a stale city on the other side of the world.
    */
   private pauseRealGPSForSimulation(): void {
     if (!this.usingRealGPS) return;
@@ -589,12 +587,12 @@ export class AppModel {
     if (this.usingRealGPS && this.location) {
       // You are still standing exactly where you were a moment ago — only
       // the fog and history are being cleared, not where the app thinks you
-      // are. Jumping to `homePlace` here is the bug that used to relocate a
-      // real-GPS user to San Francisco on every reset.
+      // are. Jumping to `DEFAULT_START` here is the bug that used to relocate
+      // a real-GPS user to San Francisco on every reset.
       this.focusMap(this.location, DEFAULT_ZOOM_M, true);
     } else {
-      this.simulated.jump(homePlace);
-      this.focusMap(homePlace, 90_000, true);
+      this.simulated.jump(DEFAULT_START);
+      this.focusMap(DEFAULT_START, 90_000, true);
     }
 
     // Drop your own photos from view immediately rather than waiting on the
