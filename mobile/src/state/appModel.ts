@@ -4,9 +4,18 @@ import { Explorer, LocalIdentity, RemoteUser } from '../model/explorer';
 import { NearbyResult, Photo, photoCoordinate } from '../model/photo';
 import { Place, homePlace, nearestPlace } from '../model/place';
 import { ExplorationStore, ExploredPoint } from '../services/explorationStore';
+import { reverseGeocode } from '../services/geocoding';
 import { AuthorizationStatus, LiveLocationProvider } from '../services/liveLocationProvider';
 import { SimulatedLocationProvider } from '../services/locationProvider';
 import { NimbusAPI, PhotoService, PhotoServiceError } from '../services/photoService';
+
+/** A named place, whichever way it was resolved. */
+interface ResolvedPlace {
+  id: string;
+  name: string;
+  city: string;
+  country: string;
+}
 
 /**
  * A camera instruction. Compared by token so repeated identical requests (for
@@ -27,6 +36,23 @@ export interface MapRegion {
   latitudeDelta: number;
   longitudeDelta: number;
 }
+
+/** Close enough to read street names, which is what "nearby" should look like by default. */
+const DEFAULT_ZOOM_M = 600;
+
+/**
+ * How far you have to move, and how long to wait, before checking whether
+ * you have reached a new named place. Reverse geocoding is a network call;
+ * checking on every fix would mean dozens of calls a second during a
+ * simulated wander, so this rate-limits it to something a demo can actually
+ * afford. 150m is a couple of blocks — small enough that a real walk keeps
+ * discovering places, large enough that GPS jitter cannot trigger it.
+ */
+const PLACE_CHECK_DISTANCE_M = 150;
+const PLACE_CHECK_MIN_INTERVAL_MS = 5_000;
+
+/** A cached geocode is reused for anything still this close to where it was resolved. */
+const PLACE_CACHE_RADIUS_M = 150;
 
 export interface Banner {
   id: number;
@@ -76,7 +102,7 @@ export class AppModel {
   focus: MapFocus | null = null;
   followsUser = false;
   banner: Banner | null = null;
-  usingRealGPS = false;
+  usingRealGPS = true;
 
   // MARK: Collaborators
 
@@ -91,6 +117,9 @@ export class AppModel {
   private lastRegion: MapRegion | null = null;
   private regionFetch: ReturnType<typeof setTimeout> | null = null;
   private bannerTimer: ReturnType<typeof setTimeout> | null = null;
+  private hasCentredOnLiveLocation = false;
+  private geocodeCache: { coordinate: Coordinate; place: ResolvedPlace } | null = null;
+  private lastPlaceCheck: { coordinate: Coordinate; at: number } | null = null;
 
   // MARK: Observation
 
@@ -117,16 +146,28 @@ export class AppModel {
     this.service = service;
 
     this.simulated.onUpdate = (location) => this.handle(location);
-    this.live.onUpdate = (location) => this.handle(location);
+    this.live.onUpdate = (location) => {
+      this.handle(location);
+      // The very first real fix is what tells the map where the person
+      // actually is, rather than wherever the app opened on. Recentring on
+      // every fix after that would fight anyone who pans away to look
+      // around, so this only fires once per app launch.
+      if (!this.hasCentredOnLiveLocation) {
+        this.hasCentredOnLiveLocation = true;
+        this.focusMap(location, DEFAULT_ZOOM_M, true);
+      }
+    };
     this.live.onAuthorizationChange = (status) => this.handleAuthorization(status);
 
     this.explorationPoints = exploration.points;
 
     // Pick up where this device left off, or open on the starting landmark if
-    // the map has never been anywhere.
+    // the map has never been anywhere. Real GPS (the default) overtakes this
+    // the moment the first fix arrives.
     const start = exploration.lastCoordinate ?? homePlace;
     this.simulated.jump(start);
-    this.focusMap(start, 2_600, false);
+    this.focusMap(start, DEFAULT_ZOOM_M, false);
+    this.switchProvider();
   }
 
   /**
@@ -190,7 +231,72 @@ export class AppModel {
       this.explorationPoints = [...this.exploration.points];
       this.applyExplorationGate();
     }
+    this.maybeCheckForNewPlace(location);
     this.notify();
+  }
+
+  // MARK: Places
+
+  /**
+   * A named place for `coordinate` — one of the curated landmarks if you are
+   * standing at one (instant, free), otherwise whatever the device's own
+   * geocoder makes of it. Caches the last geocode, since capture and the
+   * visit check both ask for wherever you currently are.
+   */
+  private async resolvePlace(coordinate: Coordinate): Promise<ResolvedPlace | null> {
+    const landmark = nearestPlace(coordinate);
+    if (landmark) {
+      return { id: landmark.id, name: landmark.name, city: landmark.city, country: landmark.country };
+    }
+
+    if (
+      this.geocodeCache &&
+      distanceM(coordinate, this.geocodeCache.coordinate) < PLACE_CACHE_RADIUS_M
+    ) {
+      return this.geocodeCache.place;
+    }
+
+    const resolved = await reverseGeocode(coordinate);
+    if (!resolved) return null;
+
+    // Grid the id to a city-block-ish cell rather than the exact fix, so
+    // wandering around the same spot cannot mint a second "visit" just
+    // because the geocoder phrased the address slightly differently.
+    const place: ResolvedPlace = {
+      id: `geo:${Math.round(coordinate.latitude * 100)}:${Math.round(coordinate.longitude * 100)}`,
+      name: resolved.name,
+      city: resolved.city ?? '',
+      country: resolved.country ?? '',
+    };
+    this.geocodeCache = { coordinate, place };
+    return place;
+  }
+
+  /** What to call the place you are at right now, for the capture screen. */
+  async resolvePlaceName(coordinate: Coordinate): Promise<string | null> {
+    const place = await this.resolvePlace(coordinate);
+    return place?.name ?? null;
+  }
+
+  /**
+   * Rate-limited check for whether `location` is a new entry for "places you
+   * found" — see `PLACE_CHECK_DISTANCE_M` for why this cannot run on every
+   * fix.
+   */
+  private maybeCheckForNewPlace(location: Coordinate): void {
+    const now = Date.now();
+    if (this.lastPlaceCheck) {
+      const farEnough = distanceM(location, this.lastPlaceCheck.coordinate) >= PLACE_CHECK_DISTANCE_M;
+      const longEnough = now - this.lastPlaceCheck.at >= PLACE_CHECK_MIN_INTERVAL_MS;
+      if (!farEnough || !longEnough) return;
+    }
+    this.lastPlaceCheck = { coordinate: location, at: now };
+
+    void this.resolvePlace(location).then((place) => {
+      if (!place) return;
+      const isNew = this.exploration.noteVisit(place.id, place.name, place.city, place.country);
+      if (isNew) this.notify();
+    });
   }
 
   /**
@@ -206,7 +312,7 @@ export class AppModel {
     }
     this.isTravelling = true;
     this.followsUser = true;
-    this.focusMap(coordinate, 1_400, true);
+    this.focusMap(coordinate, DEFAULT_ZOOM_M, true);
     this.notify();
 
     this.simulated.travel(coordinate, (arrival) => {
@@ -216,12 +322,7 @@ export class AppModel {
       // Deliberately small: arriving somewhere should leave you *at* it, close
       // enough that the memories people left there are within the 100m search.
       // "Walk around here" is the way to cover more ground.
-      this.simulated.wander(60, 3, () => {
-        this.isTravelling = false;
-        this.followsUser = false;
-        this.notify();
-        void this.refreshPhotosForCurrentRegion();
-      });
+      this.simulated.wander(60, 3, () => this.finishSimulatedExcursion());
     });
   }
 
@@ -240,17 +341,32 @@ export class AppModel {
     this.followsUser = true;
     this.notify();
 
-    this.simulated.wander(500, 7, () => {
-      this.isTravelling = false;
-      this.followsUser = false;
-      this.notify();
-      void this.refreshPhotosForCurrentRegion();
-    });
+    this.simulated.wander(500, 7, () => this.finishSimulatedExcursion());
+  }
+
+  /** Cut a walk or flight short. Whatever fog burned off before now stays off. */
+  stopTravel(): void {
+    if (!this.isTravelling) return;
+    this.simulated.cancelMovement();
+    this.finishSimulatedExcursion();
+  }
+
+  /**
+   * A demo excursion is over — hand location back to the device's real GPS,
+   * which is the default the rest of the app expects to be running.
+   */
+  private finishSimulatedExcursion(): void {
+    this.isTravelling = false;
+    this.followsUser = false;
+    this.usingRealGPS = true;
+    this.live.start();
+    this.notify();
+    void this.refreshPhotosForCurrentRegion();
   }
 
   centreOnMe(): void {
     if (!this.location) return;
-    this.focusMap(this.location, 1_200, true);
+    this.focusMap(this.location, DEFAULT_ZOOM_M, true);
     this.notify();
   }
 
@@ -413,12 +529,13 @@ export class AppModel {
     }
 
     try {
+      const place = await this.resolvePlace(coordinate);
       const response = await this.service.upload({
         imageBase64,
         coordinate,
         caption,
         explorer: this.explorer,
-        placeName: nearestPlace(coordinate)?.name ?? null,
+        placeName: place?.name ?? null,
       });
       this.exploration.notePhotoLeft();
       this.notify();
@@ -466,6 +583,7 @@ export class AppModel {
     this.exploration.reset();
     this.explorationPoints = [];
     this.applyExplorationGate();
+    this.lastPlaceCheck = null;
 
     // `jump` cancels any walk in flight without running its completion.
     this.isTravelling = false;
@@ -473,10 +591,6 @@ export class AppModel {
     this.simulated.jump(homePlace);
     this.focusMap(homePlace, 90_000, true);
     this.showBanner('Your map is clouded over again.');
-  }
-
-  get currentPlaceName(): string | null {
-    return this.location ? (nearestPlace(this.location)?.name ?? null) : null;
   }
 
   /** How far the map has drifted from the explorer, for the follow camera. */

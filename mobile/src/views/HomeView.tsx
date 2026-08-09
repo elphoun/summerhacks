@@ -35,11 +35,6 @@ export function HomeView({ onOpen }: { onOpen: (sheet: ActiveSheet) => void }) {
       {/* Header */}
       <View style={styles.header}>
         <Image source={require('../../assets/wander-logo.png')} style={styles.logo} resizeMode="contain" />
-        <Pressable style={styles.gear} onPress={() => onOpen({ kind: 'history' })}>
-          <PixelPanel radius={13} style={styles.gearButton}>
-            <PixelIcon glyph="gear" size={18} color={WanderTheme.textPrimary} />
-          </PixelPanel>
-        </Pressable>
       </View>
 
       {/* Welcome */}
@@ -48,6 +43,7 @@ export function HomeView({ onOpen }: { onOpen: (sheet: ActiveSheet) => void }) {
           initials={initialsOf(model.explorer.displayName)}
           color={model.explorer.colorHex}
           size={52}
+          source={require('../../assets/avatar.png')}
         />
         <View style={styles.welcomeText}>
           <Text style={[wanderFont(18, 'bold'), styles.primary]}>Welcome back, {firstName}!</Text>
@@ -170,8 +166,6 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 18, paddingBottom: 130, gap: 18 },
   header: { alignItems: 'center', justifyContent: 'center' },
   logo: { height: 130, width: '70%' },
-  gear: { position: 'absolute', right: 0, top: '50%', marginTop: -21 },
-  gearButton: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
 
   welcome: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   welcomeText: { flex: 1, gap: 4 },

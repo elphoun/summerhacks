@@ -71,7 +71,10 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
     paddingHorizontal: 12,
-    paddingTop: 10,
+    // The camera button pokes up out of this row by its own negative
+    // marginTop (see `camera` below); this has to be tall enough that the
+    // poke stays clear of `borderTopWidth` rather than crossing it.
+    paddingTop: 24,
     backgroundColor: WanderTheme.background,
     borderTopWidth: 1,
     borderTopColor: WanderTheme.hairline,

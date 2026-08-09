@@ -76,11 +76,15 @@ test('walking a route leaves a trail of breadcrumbs', () => {
   expect(store.isExplored(offset(PARIS, 900, 90))).toBe(true);
 });
 
-test('arriving at a landmark records one visit, not one per step', () => {
+// Naming a coordinate (reverse geocoding, or matching a hardcoded landmark)
+// is AppModel's job, not the store's — it is async and network-bound. The
+// store only has to dedupe and persist whatever it is told.
+test('noting the same place twice only records one visit', () => {
   const store = storeFor('visits');
-  for (let step = 0; step < 6; step++) {
-    store.record(offset(PARIS, step * 70, 20));
-  }
+
+  expect(store.noteVisit('eiffel', 'Eiffel Tower', 'Paris', 'France')).toBe(true);
+  expect(store.noteVisit('eiffel', 'Eiffel Tower', 'Paris', 'France')).toBe(false);
+
   expect(store.placesDiscovered).toBe(1);
   expect(store.visits[0]?.placeName).toBe('Eiffel Tower');
 });
@@ -89,11 +93,13 @@ test('exploration survives a relaunch', async () => {
   const first = storeFor('persist');
   first.record(PARIS);
   first.notePhotoLeft();
+  first.noteVisit('eiffel', 'Eiffel Tower', 'Paris', 'France');
 
   const second = await reloaded('persist');
   expect(second.isExplored(PARIS)).toBe(true);
   expect(second.photosLeft).toBe(1);
   expect(second.placesDiscovered).toBe(1);
+  expect(second.visits[0]?.placeName).toBe('Eiffel Tower');
 });
 
 test('resetting clouds one map over without touching any other', () => {

@@ -1,6 +1,6 @@
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -44,6 +44,22 @@ export function CaptureSheet({
   const [picked, setPicked] = useState<Picked | null>(null);
   const [caption, setCaption] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [placeName, setPlaceName] = useState<string | null>(null);
+
+  // Naming a coordinate is a network call, so it is resolved once when the
+  // sheet actually opens, not on every location fix that arrives while it is
+  // sitting there open.
+  useEffect(() => {
+    if (!visible || !model.location) return;
+    let cancelled = false;
+    setPlaceName(null);
+    void model.resolvePlaceName(model.location).then((name) => {
+      if (!cancelled) setPlaceName(name);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, model]);
 
   const reset = () => {
     setPicked(null);
@@ -140,7 +156,7 @@ export function CaptureSheet({
         <View style={styles.chooser}>
           <View style={styles.where}>
             <Text style={[wanderFont(22, 'bold'), styles.primary]}>
-              {model.currentPlaceName ?? 'Right here'}
+              {placeName ?? 'Right here'}
             </Text>
             {model.location ? (
               <Text style={styles.coordinates}>
