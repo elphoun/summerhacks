@@ -16,6 +16,7 @@ struct PhotoDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     PhotoThumbnail(photo: photo, cornerRadius: 20)
+                        .frame(maxWidth: .infinity)
                         .frame(height: 460)
 
                     if !photo.caption.isEmpty {
@@ -39,7 +40,7 @@ struct PhotoDetailView: View {
                                 .font(.wander(12))
                                 .foregroundStyle(WanderTheme.secondaryText)
                         }
-                        Spacer()
+                        Spacer(minLength: 0)
                     }
 
                     VStack(spacing: 0) {
@@ -56,6 +57,7 @@ struct PhotoDetailView: View {
                     .wanderCard(cornerRadius: 16, padding: 4)
                 }
                 .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .background(WanderTheme.background)
             .navigationTitle(photo.placeName ?? "A memory")
@@ -66,18 +68,20 @@ struct PhotoDetailView: View {
                 }
             }
         }
+        .presentationDetents([.large])
         .presentationBackground(WanderTheme.background)
     }
 
     private func detailRow(_ label: String, _ value: String) -> some View {
-        HStack {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
             Text(label)
                 .font(.wander(13))
                 .foregroundStyle(WanderTheme.secondaryText)
-            Spacer()
+            Spacer(minLength: 8)
             Text(value)
                 .font(.wander(13, weight: .medium))
                 .foregroundStyle(WanderTheme.textPrimary)
+                .multilineTextAlignment(.trailing)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 12)

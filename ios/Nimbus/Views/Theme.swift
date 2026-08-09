@@ -92,32 +92,44 @@ struct ExplorerAvatar: View {
 }
 
 /// A photo from the shared collection, with a soft placeholder while it loads.
+///
+/// Sized strictly to the parent frame: the image is forced to that exact size
+/// and clipped, so `scaledToFill` cannot spill into neighbours or widen a
+/// ScrollView / sheet.
 struct PhotoThumbnail: View {
     let photo: Photo
     var cornerRadius: CGFloat = 14
 
     var body: some View {
-        AsyncImage(url: photo.imageURL, transaction: Transaction(animation: .easeOut(duration: 0.25))) { phase in
-            switch phase {
-            case .success(let image):
-                image.resizable().scaledToFill()
-            case .failure:
-                ZStack {
-                    WanderTheme.panelSoft
-                    PixelIcon(glyph: .image, size: 22, color: WanderTheme.secondaryText)
-                }
-            default:
-                ZStack {
-                    WanderTheme.panelSoft
-                    ProgressView().tint(WanderTheme.secondaryText)
+        GeometryReader { proxy in
+            AsyncImage(url: photo.imageURL, transaction: Transaction(animation: .easeOut(duration: 0.25))) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipped()
+                case .failure:
+                    ZStack {
+                        WanderTheme.panelSoft
+                        PixelIcon(glyph: .image, size: 22, color: WanderTheme.secondaryText)
+                    }
+                default:
+                    ZStack {
+                        WanderTheme.panelSoft
+                        ProgressView().tint(WanderTheme.secondaryText)
+                    }
                 }
             }
+            .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .clipShape(PixelRoundedRect(radius: cornerRadius, steps: 2))
         .overlay(
             PixelRoundedRect(radius: cornerRadius, steps: 2)
                 .stroke(WanderTheme.hairline, lineWidth: 1)
         )
+        .contentShape(PixelRoundedRect(radius: cornerRadius, steps: 2))
     }
 }
 

@@ -153,11 +153,14 @@ struct CaptureSheet: View {
 
     private func composer(for image: UIImage) -> some View {
         VStack(spacing: 16) {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
-                .frame(maxWidth: .infinity)
+            Color.clear
                 .frame(height: 340)
+                .overlay {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                }
+                .clipped()
                 .clipShape(PixelRoundedRect(radius: 20, steps: 2))
                 .overlay(
                     PixelRoundedRect(radius: 20, steps: 2)
@@ -204,8 +207,9 @@ struct CaptureSheet: View {
             .foregroundStyle(WanderTheme.secondaryText)
             .disabled(isUploading)
 
-            Spacer()
+            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, alignment: .top)
     }
 
     private func upload(_ image: UIImage) {
