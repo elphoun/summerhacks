@@ -7,6 +7,11 @@ import {
   RegistrationResponse,
   RemoteUser,
 } from '../model/explorer';
+
+export interface FriendStats {
+  steps: number;
+  exploredPercent: number;
+}
 import { NearbyResult, Photo, PhotoListResponse, UploadResponse } from '../model/photo';
 
 /**
@@ -23,7 +28,7 @@ export interface PhotoService {
    * Announce this device's identity and get back its friend code and current
    * friends. Safe to call on every launch; it doubles as a rename.
    */
-  register(explorer: Explorer): Promise<RegistrationResponse>;
+  register(explorer: Explorer, stats?: FriendStats): Promise<RegistrationResponse>;
   friends(viewerID: string): Promise<RemoteUser[]>;
   addFriend(code: string, viewerID: string): Promise<AddFriendResponse>;
 
@@ -99,11 +104,12 @@ export class NimbusAPI implements PhotoService {
     }
   }
 
-  register(explorer: Explorer): Promise<RegistrationResponse> {
+  register(explorer: Explorer, stats?: FriendStats): Promise<RegistrationResponse> {
     return this.post('/users', {
       id: explorer.id,
       displayName: explorer.displayName,
       color: explorer.colorHex,
+      ...(stats == null ? {} : { steps: stats.steps, exploredPercent: stats.exploredPercent }),
     });
   }
 

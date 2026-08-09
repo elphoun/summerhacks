@@ -21,11 +21,14 @@ export const MEDIA_DIR = path.join(here, 'data', 'media');
 
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS users (
-    id            TEXT PRIMARY KEY,
-    display_name  TEXT NOT NULL,
-    color         TEXT NOT NULL,
-    is_seed       INTEGER NOT NULL DEFAULT 0,
-    friend_code   TEXT
+    id              TEXT PRIMARY KEY,
+    display_name    TEXT NOT NULL,
+    color           TEXT NOT NULL,
+    is_seed         INTEGER NOT NULL DEFAULT 0,
+    friend_code     TEXT,
+    steps           INTEGER NOT NULL DEFAULT 0,
+    explored_percent REAL NOT NULL DEFAULT 0,
+    updated_at      INTEGER NOT NULL DEFAULT 0
   );
 
   CREATE UNIQUE INDEX IF NOT EXISTS users_friend_code ON users(friend_code);
@@ -85,6 +88,15 @@ function migrate(db) {
   if (!columns.includes('friend_code')) {
     db.exec('ALTER TABLE users ADD COLUMN friend_code TEXT');
   }
+  if (!columns.includes('steps')) {
+    db.exec('ALTER TABLE users ADD COLUMN steps INTEGER NOT NULL DEFAULT 0');
+  }
+  if (!columns.includes('explored_percent')) {
+    db.exec('ALTER TABLE users ADD COLUMN explored_percent REAL NOT NULL DEFAULT 0');
+  }
+  if (!columns.includes('updated_at')) {
+    db.exec('ALTER TABLE users ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0');
+  }
 }
 
 // MARK: Users and friend codes
@@ -140,6 +152,17 @@ export function upsertUser(db, { id, displayName, color, isSeed = false }) {
   return getUser(db, id);
 }
 
+export function upsertUserStats(db, { id, steps = 0, exploredPercent = 0 }) {
+  db.prepare(
+    `INSERT INTO users (id, display_name, color, is_seed, steps, explored_percent, updated_at)
+     VALUES (?, 'Explorer', '#6EA8FF', 0, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET steps = excluded.steps,
+                                   explored_percent = excluded.explored_percent,
+                                   updated_at = excluded.updated_at`,
+  ).run(id, steps, exploredPercent, Date.now());
+  return getUser(db, id);
+}
+
 export function getUser(db, id) {
   const row = db.prepare(`${USER_SELECT} WHERE id = ?`).get(id);
   return row ? toUser(row) : null;
@@ -173,15 +196,27 @@ export function friendIds(db, userId) {
 }
 
 export function listFriends(db, userId) {
-  return db
+  const friends = db
     .prepare(
-      `SELECT u.id, u.display_name, u.color, u.is_seed, u.friend_code
+      `SELECT u.id, u.display_name, u.color, u.is_seed, u.friend_code, u.steps, u.explored_percent
          FROM friendships f JOIN users u ON u.id = f.friend_id
         WHERE f.user_id = ?
         ORDER BY u.is_seed, u.display_name`,
     )
     .all(userId)
     .map(toUser);
+
+  const ranked = [...friends].sort(
+    (a, b) =>
+      b.exploredPercent - a.exploredPercent ||
+      b.steps - a.steps ||
+      a.displayName.localeCompare(b.displayName),
+  );
+
+  return friends.map((friend) => ({
+    ...friend,
+    leaderboardRank: ranked.findIndex((candidate) => candidate.id === friend.id) + 1,
+  }));
 }
 
 /**
@@ -236,7 +271,7 @@ export function countPhotos(db) {
   return db.prepare('SELECT COUNT(*) AS n FROM photos').get().n;
 }
 
-const USER_SELECT = 'SELECT id, display_name, color, is_seed, friend_code FROM users';
+const USER_SELECT = 'SELECT id, display_name, color, is_seed, friend_code, steps, explored_percent FROM users';
 
 const PHOTO_SELECT = `
   SELECT p.id, p.user_id, p.lat, p.lon, p.taken_at, p.caption, p.media_file, p.place_name,
@@ -330,6 +365,8 @@ const toUser = (row) => ({
   color: row.color,
   isSeed: row.is_seed === 1,
   friendCode: row.friend_code ?? null,
+  steps: Number(row.steps ?? 0),
+  exploredPercent: Number(row.explored_percent ?? 0),
 });
 
 const toPhoto = (row) => ({

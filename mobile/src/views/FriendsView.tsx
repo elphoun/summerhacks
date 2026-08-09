@@ -16,6 +16,7 @@ import { useAppModel } from '../state/useAppModel';
 import { ExplorerAvatar } from '../ui/ExplorerAvatar';
 import { PixelPanel } from '../ui/PixelBox';
 import { PixelIcon } from '../ui/PixelIcon';
+import { groupedNumber, percentLabel } from '../ui/format';
 import { WanderTheme, wanderFont } from '../ui/theme';
 
 /**
@@ -214,6 +215,17 @@ export function FriendsView() {
               />
               <View style={styles.friendText}>
                 <Text style={[wanderFont(16, 'bold'), styles.primary]}>{friend.displayName}</Text>
+                <View style={styles.friendMetrics}>
+                  <Text style={[wanderFont(11), styles.secondary]}>
+                    {groupedNumber(friend.steps ?? 0)} steps
+                  </Text>
+                  <Text style={[wanderFont(11), styles.secondary]}>
+                    {percentLabel(friend.exploredPercent ?? 0)} explored
+                  </Text>
+                  <Text style={[wanderFont(11), styles.secondary]}>
+                    #{friend.leaderboardRank ?? '—'} in friends
+                  </Text>
+                </View>
                 <Text style={[wanderFont(12), styles.secondary]}>
                   {friend.isSeed === true ? 'One of the sample explorers' : 'Added by code'}
                 </Text>
@@ -255,6 +267,7 @@ const styles = StyleSheet.create({
   emptyCard: { padding: 14 },
   friendCard: { padding: 14, flexDirection: 'row', alignItems: 'center', gap: 14 },
   friendText: { flex: 1, gap: 2 },
+  friendMetrics: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   footnote: { paddingHorizontal: 4 },
 
   primary: { color: WanderTheme.textPrimary },

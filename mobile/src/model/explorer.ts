@@ -31,6 +31,9 @@ export interface RemoteUser {
   color: string;
   isSeed?: boolean;
   friendCode?: string;
+  steps?: number;
+  exploredPercent?: number;
+  leaderboardRank?: number;
 }
 
 export interface RegistrationResponse {

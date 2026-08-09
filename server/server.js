@@ -39,6 +39,7 @@ import {
   openDatabase,
   addFriendship,
   upsertUser,
+  upsertUserStats,
 } from './db.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -92,6 +93,11 @@ export function createServer(db) {
           displayName: requireString(body, 'displayName'),
           color: body.color ?? '#6EA8FF',
           isSeed: false,
+        });
+        upsertUserStats(db, {
+          id: user.id,
+          steps: Number(body.steps ?? 0),
+          exploredPercent: Number(body.exploredPercent ?? 0),
         });
         befriendSeedUsers(db, user.id);
         return sendJson(res, 200, { user, friends: listFriends(db, user.id) });
@@ -148,6 +154,11 @@ export function createServer(db) {
           id: userId,
           displayName: body.displayName ?? 'Explorer',
           color: body.color ?? '#6EA8FF',
+        });
+        upsertUserStats(db, {
+          id: userId,
+          steps: Number(body.steps ?? 0),
+          exploredPercent: Number(body.exploredPercent ?? 0),
         });
         befriendSeedUsers(db, userId);
 

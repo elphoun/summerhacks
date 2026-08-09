@@ -20,6 +20,7 @@ import {
   normaliseCode,
   openDatabase,
   upsertUser,
+  upsertUserStats,
 } from './db.js';
 import { haversineM, offsetCoordinate } from './geo.js';
 import { PLACES } from './places.js';
@@ -249,4 +250,21 @@ test('a fresh install is befriended to the seeded people so the map is not empty
   assert.equal(befriendSeedUsers(db, 'viewer'), 2);
   assert.equal(befriendSeedUsers(db, 'viewer'), 0, 're-registering adds nothing new');
   assert.deepEqual(listFriends(db, 'viewer').map((u) => u.id), ['seed-julien', 'seed-mira']);
+});
+
+test('friend summaries include steps, explored percent, and a within-friends leaderboard rank', () => {
+  const db = freshDb();
+  upsertUserStats(db, { id: 'viewer', steps: 100, exploredPercent: 1.0 });
+  upsertUserStats(db, { id: 'u-a', steps: 500, exploredPercent: 4.0 });
+  upsertUserStats(db, { id: 'u-b', steps: 300, exploredPercent: 2.0 });
+  addFriendship(db, 'viewer', 'u-a');
+  addFriendship(db, 'viewer', 'u-b');
+
+  const friends = listFriends(db, 'viewer');
+  assert.equal(friends[0].id, 'u-a');
+  assert.equal(friends[0].steps, 500);
+  assert.equal(friends[0].exploredPercent, 4.0);
+  assert.equal(friends[0].leaderboardRank, 1);
+  assert.equal(friends[1].id, 'u-b');
+  assert.equal(friends[1].leaderboardRank, 2);
 });

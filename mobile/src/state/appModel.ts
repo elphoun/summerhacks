@@ -51,6 +51,8 @@ export type AddFriendOutcome =
  * twice narrowed: to photographs left by your friends, and then to ground *you*
  * have uncovered.
  */
+const WORLD_SURFACE_KM2 = 510_100_000;
+
 export class AppModel {
   // MARK: Observable state
 
@@ -286,9 +288,17 @@ export class AppModel {
    * Tell the server who this device is. Idempotent, and how a rename reaches
    * the people who can see your photographs.
    */
+  private currentFriendStats() {
+    const exploredPercent = Math.min(100, (this.exploration.uncoveredAreaKm2 / WORLD_SURFACE_KM2) * 100);
+    return {
+      steps: this.exploration.estimatedSteps,
+      exploredPercent: Number(exploredPercent.toFixed(2)),
+    };
+  }
+
   async register(): Promise<void> {
     try {
-      const response = await this.service.register(this.explorer);
+      const response = await this.service.register(this.explorer, this.currentFriendStats());
       this.explorer = { ...this.explorer, friendCode: response.user.friendCode ?? null };
       void LocalIdentity.save(this.explorer);
       this.friends = response.friends;
@@ -412,6 +422,7 @@ export class AppModel {
       });
       this.exploration.notePhotoLeft();
       this.notify();
+      void this.register();
       await this.refreshPhotosForCurrentRegion();
       return { photo: response.photo, nearby: response.nearby };
     } catch (error) {
