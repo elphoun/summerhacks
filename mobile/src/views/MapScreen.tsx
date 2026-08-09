@@ -5,8 +5,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ExplorationMapView } from '../map/ExplorationMapView';
 import { useAppModel } from '../state/useAppModel';
+import { PixelPanel } from '../ui/PixelBox';
 import { PixelGlyph, PixelIcon } from '../ui/PixelIcon';
-import { Theme } from '../ui/theme';
+import { Theme, WanderTheme } from '../ui/theme';
 import { ActiveSheet } from './RootView';
 
 /**
@@ -66,13 +67,13 @@ export function MapScreen({ onOpen }: { onOpen: (sheet: ActiveSheet) => void }) 
   );
 }
 
-/** Small round frosted button, for the corner controls. */
+/** Small boxy button for the corner controls, with the app's warm orange on the icon. */
 function IconButton({ glyph, onPress }: { glyph: PixelGlyph; onPress: () => void }) {
   return (
     <Pressable onPress={onPress}>
-      <BlurView intensity={40} tint="dark" style={styles.iconButton}>
-        <PixelIcon glyph={glyph} size={17} color="#fff" />
-      </BlurView>
+      <PixelPanel radius={12} fill={Theme.panel} stroke={Theme.hairline} style={styles.iconButton}>
+        <PixelIcon glyph={glyph} size={17} color={WanderTheme.warm} />
+      </PixelPanel>
     </Pressable>
   );
 }
@@ -113,12 +114,8 @@ const styles = StyleSheet.create({
   iconButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Theme.hairline,
   },
 
   pill: {

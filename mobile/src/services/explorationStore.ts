@@ -36,6 +36,13 @@ interface Snapshot {
 const INDEX_CELL_SIZE = 0.01;
 /** ~220m, the resolution the area statistic is measured at. */
 const COVERAGE_CELL_SIZE = 0.002;
+/**
+ * Earth's land area, km² — what "percent of the world explored" is measured
+ * against. Total surface area (land + ocean, ~510.1M km²) would make the
+ * number meaningless for anyone not swimming; this is the ~29% of it you
+ * could actually stand on.
+ */
+const EARTH_LAND_AREA_KM2 = 148_940_000;
 
 /**
  * Everything one explorer has uncovered.
@@ -191,6 +198,11 @@ export class ExplorationStore {
 
   get placesDiscovered(): number {
     return this.visits.length;
+  }
+
+  /** How much of Earth's land this explorer has personally uncovered. */
+  get worldExploredPercent(): number {
+    return Math.min(100, (this.uncoveredAreaKm2 / EARTH_LAND_AREA_KM2) * 100);
   }
 
   get mostRecentVisits(): Visit[] {

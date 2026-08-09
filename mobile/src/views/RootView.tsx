@@ -45,7 +45,7 @@ export function RootView() {
       <StatusBar style={tab === 'map' ? 'light' : 'dark'} />
 
       <View style={styles.screen}>
-        {tab === 'home' ? <HomeView onOpen={setSheet} /> : null}
+        {tab === 'home' ? <HomeView onOpen={setSheet} onOpenMap={() => setTab('map')} /> : null}
         {tab === 'map' ? <MapScreen onOpen={setSheet} /> : null}
         {tab === 'friends' ? <FriendsView /> : null}
         {tab === 'stats' ? <StatsView /> : null}
