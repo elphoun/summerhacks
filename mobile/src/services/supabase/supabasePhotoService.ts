@@ -90,6 +90,10 @@ export class SupabasePhotoService implements PhotoService {
     );
   }
 
+  deleteMyPhotos(viewerID: string): Promise<void> {
+    return this.run(() => this.store.deleteMyPhotos(viewerID));
+  }
+
   // MARK: Errors
 
   private async run<T>(work: () => Promise<T>): Promise<T> {

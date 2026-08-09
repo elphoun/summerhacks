@@ -11,6 +11,7 @@ import {
   addFriendship,
   audienceFor,
   befriendSeedUsers,
+  deletePhotosByUser,
   findInBox,
   findNearby,
   findUserByCode,
@@ -209,6 +210,19 @@ test('the map query is scoped the same way the radius search is', () => {
   );
   // No viewer, no restriction — that is what curl gets.
   assert.equal(findInBox(db, { ...box, audience: null }).length, 2);
+});
+
+test('deleting a user\'s photos removes only theirs, and hands back their media files', () => {
+  const db = freshDb();
+  plant(db, 'p1', 'u-a', 10);
+  plant(db, 'p2', 'u-a', 20);
+  plant(db, 'p3', 'u-b', 10);
+
+  const box = { minLat: -90, maxLat: 90, minLon: -180, maxLon: 180 };
+  const removed = deletePhotosByUser(db, 'u-a');
+
+  assert.deepEqual(removed.sort(), ['p1.png', 'p2.png']);
+  assert.deepEqual(findInBox(db, box).map((p) => p.id), ['p3']);
 });
 
 test('friendship is mutual, and adding it twice is harmless', () => {

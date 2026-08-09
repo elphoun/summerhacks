@@ -35,6 +35,9 @@ export interface PhotoService {
   nearby(coordinate: Coordinate, viewerID: string): Promise<NearbyResult>;
   photos(bounds: BoundingBox, viewerID: string): Promise<Photo[]>;
   upload(request: UploadRequest): Promise<UploadResponse>;
+
+  /** Remove every photo this explorer has left. Never touches anyone else's. */
+  deleteMyPhotos(viewerID: string): Promise<void>;
 }
 
 export interface BoundingBox {
@@ -160,11 +163,19 @@ export class NimbusAPI implements PhotoService {
     );
   }
 
+  deleteMyPhotos(viewerID: string): Promise<void> {
+    return this.delete(`/photos?${new URLSearchParams({ userId: viewerID }).toString()}`);
+  }
+
   // MARK: Transport
 
   private get<T>(path: string, query: Record<string, string>): Promise<T> {
     const search = new URLSearchParams(query).toString();
     return this.send<T>(`${path}${search ? `?${search}` : ''}`, {}, REQUEST_TIMEOUT_MS);
+  }
+
+  private delete<T>(path: string, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {
+    return this.send<T>(path, { method: 'DELETE' }, timeoutMs);
   }
 
   private post<T>(path: string, body: unknown, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {

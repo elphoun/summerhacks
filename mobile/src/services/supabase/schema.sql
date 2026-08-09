@@ -87,6 +87,13 @@ drop policy if exists "public can insert photos" on public.photos;
 create policy "public can insert photos"
   on public.photos for insert to anon with check (true);
 
+-- Needed for "cloud this map over again" to actually remove what it says it
+-- removes: without this, a DELETE from the anon key matches zero rows rather
+-- than failing loudly, which reads as silent success.
+drop policy if exists "public can delete photos" on public.photos;
+create policy "public can delete photos"
+  on public.photos for delete to anon using (true);
+
 -- Storage bucket for uploaded images (create in Dashboard > Storage if this fails).
 insert into storage.buckets (id, name, public)
 values ('media', 'media', true)
@@ -101,3 +108,8 @@ drop policy if exists "public can upload media" on storage.objects;
 create policy "public can upload media"
   on storage.objects for insert to anon
   with check (bucket_id = 'media');
+
+drop policy if exists "public can delete media" on storage.objects;
+create policy "public can delete media"
+  on storage.objects for delete to anon
+  using (bucket_id = 'media');

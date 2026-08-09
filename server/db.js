@@ -271,6 +271,16 @@ export function countPhotos(db) {
   return db.prepare('SELECT COUNT(*) AS n FROM photos').get().n;
 }
 
+/** Delete every photo a user left, returning the media file names so the caller can remove those too. */
+export function deletePhotosByUser(db, userId) {
+  const mediaFiles = db
+    .prepare('SELECT media_file FROM photos WHERE user_id = ?')
+    .all(userId)
+    .map((row) => row.media_file);
+  db.prepare('DELETE FROM photos WHERE user_id = ?').run(userId);
+  return mediaFiles;
+}
+
 const USER_SELECT = 'SELECT id, display_name, color, is_seed, friend_code, steps, explored_percent FROM users';
 
 const PHOTO_SELECT = `

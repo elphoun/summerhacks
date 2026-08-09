@@ -492,3 +492,33 @@ test('a photo is mapped into the shape the map already reads', async () => {
     lon: 2.3,
   });
 });
+
+// MARK: Delete
+
+test("resetting removes only that explorer's photos, and their media files", async () => {
+  willReply(
+    { body: [{ media_file: 'a.png' }, { media_file: 'b.png' }] }, // delete photos
+    {}, // storage bulk delete
+    {} // recount
+  );
+
+  await new SupabasePhotoService().deleteMyPhotos('alex');
+
+  const deletePhotos = calls.find(
+    (call) => call.method === 'DELETE' && call.url.includes('/rest/v1/photos')
+  );
+  expect(deletePhotos?.url).toContain('user_id=eq.alex');
+
+  const deleteMedia = calls.find(
+    (call) => call.method === 'DELETE' && call.url.includes('/storage/v1/object/media')
+  );
+  expect(deleteMedia?.body).toEqual({ prefixes: ['a.png', 'b.png'] });
+});
+
+test('deleting nobody\'s photos does not bother Storage at all', async () => {
+  willReply({ body: [] });
+
+  await new NimbusDatabase().deletePhotosByUser('nobody');
+
+  expect(calls.some((call) => call.url.includes('/storage/v1/'))).toBe(false);
+});

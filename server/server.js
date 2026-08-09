@@ -9,6 +9,7 @@
 //   GET  /photos/nearby?lat&lon&viewerId
 //   GET  /photos/bbox?minLat&maxLat&minLon&maxLon&viewerId
 //   POST /photos                    upload + nearby search in one round trip
+//   DELETE /photos?userId           remove every photo that user left
 //   GET  /media/:file
 //
 // Every photo route is scoped by `viewerId` to that person and their friends.
@@ -29,6 +30,7 @@ import {
   audienceFor,
   befriendSeedUsers,
   countPhotos,
+  deletePhotosByUser,
   findInBox,
   findNearby,
   findUserByCode,
@@ -61,7 +63,7 @@ export function createServer(db) {
     // keeps `curl` and a browser tab usable as debugging tools during a demo.
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
     if (req.method === 'OPTIONS') return send(res, 204, null);
 
     try {
@@ -188,6 +190,18 @@ export function createServer(db) {
             config,
           }),
         });
+      }
+
+      // Scoped to the caller's own userId only — there is no way to ask this
+      // route to remove anyone else's photographs.
+      if (route === 'DELETE /photos') {
+        const userId = requireParam(url.searchParams, 'userId');
+        const mediaFiles = deletePhotosByUser(db, userId);
+        for (const file of mediaFiles) {
+          const full = path.join(MEDIA_DIR, file);
+          if (fs.existsSync(full)) fs.unlinkSync(full);
+        }
+        return sendJson(res, 200, { deleted: mediaFiles.length });
       }
 
       if (req.method === 'GET' && url.pathname.startsWith('/media/')) {
