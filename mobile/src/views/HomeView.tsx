@@ -10,7 +10,7 @@ import { ExplorerAvatar } from '../ui/ExplorerAvatar';
 import { PhotoThumbnail } from '../ui/PhotoThumbnail';
 import { PixelClip, PixelPanel } from '../ui/PixelBox';
 import { PixelGlyph, PixelIcon } from '../ui/PixelIcon';
-import { groupedNumber, metresLabel } from '../ui/format';
+import { groupedNumber, metresLabel, percentLabel } from '../ui/format';
 import { WanderTheme, wanderFont, wanderShadow } from '../ui/theme';
 import { ActiveSheet } from './RootView';
 
@@ -18,7 +18,13 @@ import { ActiveSheet } from './RootView';
  * The Home tab — everything from the mock except the map itself, which is the
  * same `ExplorationMapView` the Map tab uses, just framed as a card here.
  */
-export function HomeView({ onOpen }: { onOpen: (sheet: ActiveSheet) => void }) {
+export function HomeView({
+  onOpen,
+  onOpenMap,
+}: {
+  onOpen: (sheet: ActiveSheet) => void;
+  onOpenMap: () => void;
+}) {
   const model = useAppModel();
   const insets = useSafeAreaInsets();
 
@@ -82,16 +88,15 @@ export function HomeView({ onOpen }: { onOpen: (sheet: ActiveSheet) => void }) {
             userColor={model.explorer.colorHex}
             focus={model.focus}
             followsUser={model.followsUser}
-            onLongPress={(coordinate) => model.travel(coordinate, null)}
-            onSelect={(photo) => onOpen({ kind: 'photo', photo })}
+            // A preview, not the real thing — a tap opens the Map tab instead
+            // of acting on the map directly, so there is nothing for a long
+            // press or a pin tap to do here.
+            onLongPress={() => {}}
+            onSelect={() => {}}
             onRegionChange={(region) => model.regionChanged(region)}
           />
         </PixelClip>
-        <Pressable style={styles.recentre} onPress={() => model.centreOnMe()}>
-          <View style={styles.recentreDisc}>
-            <PixelIcon glyph="locationPin" size={30} color={WanderTheme.warm} />
-          </View>
-        </Pressable>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onOpenMap} />
       </View>
 
       {/* Stats row */}
@@ -99,8 +104,8 @@ export function HomeView({ onOpen }: { onOpen: (sheet: ActiveSheet) => void }) {
         <StatItem
           glyph="seedling"
           tint={WanderTheme.accent}
-          title={'Places\nDiscovered'}
-          value={String(model.exploration.placesDiscovered)}
+          title={'World\nExplored'}
+          value={percentLabel(model.exploration.worldExploredPercent)}
         />
         <View style={styles.divider} />
         <StatItem
@@ -174,18 +179,6 @@ const styles = StyleSheet.create({
 
   mapCard: { height: 380 },
   mapClip: { flex: 1 },
-  recentre: { position: 'absolute', right: 14, bottom: 14 },
-  recentreDisc: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: WanderTheme.panel,
-    ...wanderShadow,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-  },
 
   statsRow: { flexDirection: 'row', padding: 16 },
   statItem: { flex: 1, alignItems: 'center', gap: 6 },

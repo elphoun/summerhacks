@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppModel } from '../state/useAppModel';
 import { PixelPanel } from '../ui/PixelBox';
 import { PixelGlyph, PixelIcon } from '../ui/PixelIcon';
-import { abbreviatedDate, areaLabel, groupedNumber, metresLabel } from '../ui/format';
+import { abbreviatedDate, areaLabel, groupedNumber, metresLabel, percentLabel } from '../ui/format';
 import { WanderTheme, wanderFont } from '../ui/theme';
 
 /**
@@ -40,8 +40,8 @@ export function StatsView() {
         <Tile
           glyph="seedling"
           tint={WanderTheme.accent}
-          value={String(model.exploration.placesDiscovered)}
-          caption="places discovered"
+          value={percentLabel(model.exploration.worldExploredPercent)}
+          caption="world explored"
         />
         <Tile
           glyph="camera"

@@ -14,7 +14,7 @@ export function areaLabel(km2: number): string {
 export const groupedNumber = (value: number): string => value.toLocaleString();
 
 /** "12.3%" */
-export const percentLabel = (value: number): string => `${Math.min(100, Math.max(0, value)).toFixed(1)}%`;
+export const percentLabel = (value: number): string => `${Math.min(100, Math.max(0, value)).toFixed(3)}%`;
 
 /** "March 2025" */
 export const monthAndYear = (date: Date): string =>

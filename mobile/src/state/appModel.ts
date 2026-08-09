@@ -77,8 +77,6 @@ export type AddFriendOutcome =
  * twice narrowed: to photographs left by your friends, and then to ground *you*
  * have uncovered.
  */
-const WORLD_SURFACE_KM2 = 510_100_000;
-
 export class AppModel {
   // MARK: Observable state
 
@@ -402,10 +400,9 @@ export class AppModel {
    * the people who can see your photographs.
    */
   private currentFriendStats() {
-    const exploredPercent = Math.min(100, (this.exploration.uncoveredAreaKm2 / WORLD_SURFACE_KM2) * 100);
     return {
       steps: this.exploration.estimatedSteps,
-      exploredPercent: Number(exploredPercent.toFixed(2)),
+      exploredPercent: Number(this.exploration.worldExploredPercent.toFixed(3)),
     };
   }
 
