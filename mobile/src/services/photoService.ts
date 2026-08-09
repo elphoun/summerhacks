@@ -35,12 +35,6 @@ export interface PhotoService {
   nearby(coordinate: Coordinate, viewerID: string): Promise<NearbyResult>;
   photos(bounds: BoundingBox, viewerID: string): Promise<Photo[]>;
   upload(request: UploadRequest): Promise<UploadResponse>;
-
-  /**
-   * A plausible photograph, for demoing the capture flow where there is no
-   * camera. Returns base64 JPEG/PNG bytes, the same currency as `upload`.
-   */
-  sampleShot(): Promise<string>;
 }
 
 export interface BoundingBox {
@@ -164,11 +158,6 @@ export class NimbusAPI implements PhotoService {
       },
       UPLOAD_TIMEOUT_MS
     );
-  }
-
-  async sampleShot(): Promise<string> {
-    const response = await this.get<{ imageBase64: string }>('/sample-shot', {});
-    return response.imageBase64;
   }
 
   // MARK: Transport

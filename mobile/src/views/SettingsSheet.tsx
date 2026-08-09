@@ -1,9 +1,9 @@
 import React from 'react';
 import { Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
-import { serverBaseURL } from '../config';
 import { distanceM } from '../geo';
 import { PLACES, Place, homePlace } from '../model/place';
+import { backendAddress, backendKind } from '../services/backend';
 import { useAppModel } from '../state/useAppModel';
 import { Row, RowCaption, RowTitle, Section } from '../ui/ListSection';
 import { PixelIcon } from '../ui/PixelIcon';
@@ -133,7 +133,7 @@ export function SettingsSheet({ visible, close }: { visible: boolean; close: () 
 
         <Section
           header="Reset"
-          footer={`Resets only what you have uncovered. Photos left in the world are not deleted, and your friends are kept.\n\nServer: ${serverBaseURL}`}>
+          footer={`Resets only what you have uncovered. Photos left in the world are not deleted, and your friends are kept.\n\n${backendKind === 'supabase' ? 'Supabase' : 'Server'}: ${backendAddress()}`}>
           <Row onPress={confirmReset}>
             <View style={styles.labelled}>
               <PixelIcon glyph="cloud" size={15} color="#e0483a" />
