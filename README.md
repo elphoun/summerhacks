@@ -51,6 +51,8 @@ Do not commit your .env file or any secret keys to GitHub.
 1. Download Expo Go on your mobile device.
 2. Install dependencies and start the development server
 
+<img width="394" height="392" alt="image" src="https://github.com/user-attachments/assets/35dc1266-591f-4412-9f2c-71ffc6041a7a" />
+
 ```bash
 cd mobile && npm install && npx expo start
 ```
