@@ -84,6 +84,7 @@ export function FriendsView() {
             initials={initialsOf(name.length === 0 ? model.explorer.displayName : name)}
             color={model.explorer.colorHex}
             size={46}
+            source={require('../../assets/avatar.png')}
           />
           <View style={styles.identityText}>
             <TextInput

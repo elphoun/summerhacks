@@ -1,6 +1,5 @@
 import { breadcrumbSpacingM, revealRadiusM } from '../config';
 import { Coordinate, distanceM } from '../geo';
-import { nearestPlace } from '../model/place';
 import { KeyValueStore, deviceStore } from './storage';
 
 /** One place you stood, and the circle of world it burned off your fog. */
@@ -107,7 +106,6 @@ export class ExplorationStore {
    */
   record(coordinate: Coordinate): boolean {
     this.lastCoordinate = coordinate;
-    this.noteArrival(coordinate);
 
     if (this.isTooCloseToExistingPoint(coordinate)) {
       this.save();
@@ -130,6 +128,19 @@ export class ExplorationStore {
   notePhotoLeft(): void {
     this.photosLeft += 1;
     this.save();
+  }
+
+  /**
+   * Record having reached a named place, the first time. Naming a coordinate
+   * is someone else's job (reverse geocoding is async and network-bound);
+   * this just dedupes and stores. Returns whether it was actually new.
+   */
+  noteVisit(id: string, placeName: string, city: string, country: string): boolean {
+    if (this.visits.some((visit) => visit.id === id)) return false;
+
+    this.visits.push({ id, placeName, city, country, firstSeen: Date.now() });
+    this.save();
+    return true;
   }
 
   /** Wipes this explorer back to a fresh install. Only they are affected. */
@@ -234,20 +245,6 @@ export class ExplorationStore {
       }
     }
     return false;
-  }
-
-  private noteArrival(coordinate: Coordinate): void {
-    const place = nearestPlace(coordinate);
-    if (!place) return;
-    if (this.visits.some((visit) => visit.id === place.id)) return;
-
-    this.visits.push({
-      id: place.id,
-      placeName: place.name,
-      city: place.city,
-      country: place.country,
-      firstSeen: Date.now(),
-    });
   }
 
   private addToIndex(point: ExploredPoint, offset: number): void {

@@ -1,8 +1,9 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
+import { serverBaseURL } from '../config';
 import { distanceM } from '../geo';
-import { PLACES, Place } from '../model/place';
+import { PLACES, Place, homePlace } from '../model/place';
 import { useAppModel } from '../state/useAppModel';
 import { Row, RowCaption, RowTitle, Section } from '../ui/ListSection';
 import { PixelIcon } from '../ui/PixelIcon';
@@ -10,13 +11,14 @@ import { Sheet } from '../ui/Sheet';
 import { WanderTheme, wanderFont } from '../ui/theme';
 
 /**
- * Simulated travel.
+ * Simulated travel and the handful of things a demo needs, in one place.
  *
- * Real background GPS is the eventual product; this is how you demonstrate a
- * year of wandering in ninety seconds without leaving the room. Flip "use real
- * GPS" and the same app runs on device location instead.
+ * Real device GPS is on by default and is how the app is meant to be used;
+ * the travel controls here are the fallback for showing a year of wandering
+ * in ninety seconds instead. Flipping "use real GPS" off borrows the location
+ * for a simulated walk or flight, and switches back on its own once it lands.
  */
-export function TravelSheet({ visible, close }: { visible: boolean; close: () => void }) {
+export function SettingsSheet({ visible, close }: { visible: boolean; close: () => void }) {
   const model = useAppModel();
 
   /**
@@ -44,18 +46,44 @@ export function TravelSheet({ visible, close }: { visible: boolean; close: () =>
     return metres < 1000 ? `${Math.trunc(metres)} m` : `${Math.trunc(metres / 1000)} km`;
   };
 
+  const confirmReset = () => {
+    Alert.alert(
+      'Cloud this map over?',
+      `You will start again from ${homePlace.city}, with everywhere back under cloud.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: () => closeThen(() => model.resetExploration()),
+        },
+      ]
+    );
+  };
+
   return (
-    <Sheet visible={visible} title="Travel" onClose={close}>
+    <Sheet visible={visible} title="Settings" onClose={close}>
       <ScrollView contentContainerStyle={styles.content}>
         <Section
           header="Where you are"
           footer="Tip: press and hold anywhere on the map to travel there.">
-          <Row onPress={() => closeThen(() => model.wanderHere())} disabled={model.isTravelling}>
+          <Row
+            onPress={() =>
+              model.isTravelling ? model.stopTravel() : closeThen(() => model.wanderHere())
+            }>
             <View style={styles.labelled}>
-              <PixelIcon glyph="person" size={17} color={WanderTheme.accent} />
+              <PixelIcon
+                glyph="person"
+                size={17}
+                color={model.isTravelling ? WanderTheme.warm : WanderTheme.accent}
+              />
               <View style={styles.labelText}>
-                <RowTitle>Walk around here</RowTitle>
-                <RowCaption>Uncovers a few more streets on foot</RowCaption>
+                <RowTitle>{model.isTravelling ? 'Stop' : 'Walk around here'}</RowTitle>
+                <RowCaption>
+                  {model.isTravelling
+                    ? 'Stop and keep what you have uncovered so far'
+                    : 'Uncovers a few more streets on foot'}
+                </RowCaption>
               </View>
             </View>
           </Row>
@@ -101,6 +129,17 @@ export function TravelSheet({ visible, close }: { visible: boolean; close: () =>
               </View>
             </Row>
           ))}
+        </Section>
+
+        <Section
+          header="Reset"
+          footer={`Resets only what you have uncovered. Photos left in the world are not deleted, and your friends are kept.\n\nServer: ${serverBaseURL}`}>
+          <Row onPress={confirmReset}>
+            <View style={styles.labelled}>
+              <PixelIcon glyph="cloud" size={15} color="#e0483a" />
+              <RowTitle tint="#e0483a">Cloud this map over again</RowTitle>
+            </View>
+          </Row>
         </Section>
       </ScrollView>
     </Sheet>

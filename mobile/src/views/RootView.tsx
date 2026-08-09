@@ -9,13 +9,12 @@ import { PixelPanel } from '../ui/PixelBox';
 import { WanderTheme, wanderFont } from '../ui/theme';
 import { CaptureSheet } from './CaptureSheet';
 import { FriendsView } from './FriendsView';
-import { HistorySheet } from './HistorySheet';
 import { HomeView } from './HomeView';
 import { MapScreen } from './MapScreen';
 import { NearbySheet } from './NearbySheet';
 import { PhotoDetailView } from './PhotoDetailView';
+import { SettingsSheet } from './SettingsSheet';
 import { StatsView } from './StatsView';
-import { TravelSheet } from './TravelSheet';
 import { WanderTab, WanderTabBar } from './WanderTabBar';
 
 export interface NearbyPresentation {
@@ -25,9 +24,8 @@ export interface NearbyPresentation {
 }
 
 export type ActiveSheet =
-  | { kind: 'travel' }
+  | { kind: 'settings' }
   | { kind: 'capture' }
-  | { kind: 'history' }
   | { kind: 'nearby'; presentation: NearbyPresentation }
   | { kind: 'photo'; photo: Photo };
 
@@ -70,8 +68,7 @@ export function RootView() {
         </PixelPanel>
       ) : null}
 
-      <TravelSheet visible={sheet?.kind === 'travel'} close={closeSheet} />
-      <HistorySheet visible={sheet?.kind === 'history'} close={closeSheet} />
+      <SettingsSheet visible={sheet?.kind === 'settings'} close={closeSheet} />
       <CaptureSheet
         visible={sheet?.kind === 'capture'}
         close={closeSheet}
