@@ -87,16 +87,20 @@ export function FriendsView() {
             source={require('../../assets/avatar.png')}
           />
           <View style={styles.identityText}>
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              onSubmitEditing={commitName}
-              onBlur={commitName}
-              placeholder="Your name"
-              placeholderTextColor={WanderTheme.secondaryText}
-              returnKeyType="done"
-              style={[wanderFont(16, 'bold'), styles.primary, styles.nameField]}
-            />
+            <View style={styles.nameRow}>
+              <TextInput
+                value={name}
+                onChangeText={setName}
+                onSubmitEditing={commitName}
+                onBlur={commitName}
+                placeholder="Your name"
+                placeholderTextColor={WanderTheme.secondaryText}
+                returnKeyType="done"
+                selectTextOnFocus
+                style={[wanderFont(16, 'bold'), styles.primary, styles.nameField]}
+              />
+              <PixelIcon glyph="pencil" size={13} color={WanderTheme.secondaryText} />
+            </View>
             <Text style={[wanderFont(12), styles.secondary]}>
               The name on every photo you leave
             </Text>
@@ -253,7 +257,17 @@ const styles = StyleSheet.create({
   cardTitle: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   identityRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   identityText: { flex: 1, gap: 2 },
-  nameField: { padding: 0 },
+  // A bare TextInput reads as a static label; the underline is what tells you
+  // it's tappable.
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  nameField: {
+    flexShrink: 1,
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: 3,
+    borderBottomWidth: 1,
+    borderBottomColor: WanderTheme.hairline,
+  },
   rule: { height: 1, backgroundColor: WanderTheme.hairline },
   codeRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   code: { letterSpacing: 4, marginTop: 3 },
