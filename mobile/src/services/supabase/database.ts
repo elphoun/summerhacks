@@ -315,6 +315,25 @@ export class NimbusDatabase {
     return rows[0] ? this.asPhoto(rows[0]) : null;
   }
 
+  /**
+   * Delete every photo a user left, and the media files they pointed at.
+   * Mirrors server/db.js `deletePhotosByUser` + the file cleanup server.js
+   * does around it — here in one call, since Storage is just another Supabase
+   * endpoint rather than the local filesystem.
+   */
+  async deletePhotosByUser(userId: string): Promise<string[]> {
+    const rows = await this.rest<{ media_file: string }[]>(
+      `photos?user_id=eq.${encodeURIComponent(userId)}`,
+      {
+        method: 'DELETE',
+        headers: { Prefer: 'return=representation' },
+      }
+    );
+    const mediaFiles = rows.map((row) => row.media_file);
+    if (mediaFiles.length > 0) await this.deleteMedia(mediaFiles);
+    return mediaFiles;
+  }
+
   async countPhotos(): Promise<number> {
     const { url, key } = requireSupabaseConfig();
     const response = await fetch(`${url}/rest/v1/photos?select=id`, {
@@ -427,6 +446,21 @@ export class NimbusDatabase {
     if (!response.ok) throw new SupabaseError(response.status, await response.text());
 
     return file;
+  }
+
+  /** Storage's bulk-remove endpoint — one call for every file, not one call each. */
+  private async deleteMedia(files: string[]): Promise<void> {
+    const { url, key } = requireSupabaseConfig();
+    const response = await fetch(`${url}/storage/v1/object/${mediaBucket}`, {
+      method: 'DELETE',
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ prefixes: files }),
+    });
+    if (!response.ok) throw new SupabaseError(response.status, await response.text());
   }
 
   publicMediaURL(mediaFile: string): string {

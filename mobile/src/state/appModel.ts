@@ -304,10 +304,7 @@ export class AppModel {
    */
   travel(coordinate: Coordinate, name: string | null): void {
     this.simulated.cancelMovement();
-    if (this.usingRealGPS) {
-      this.usingRealGPS = false;
-      this.live.stop();
-    }
+    this.pauseRealGPSForSimulation();
     this.isTravelling = true;
     this.followsUser = true;
     this.focusMap(coordinate, DEFAULT_ZOOM_M, true);
@@ -331,15 +328,25 @@ export class AppModel {
   /** Mill about where you already are, uncovering a few more streets. */
   wanderHere(): void {
     if (this.isTravelling) return;
-    if (this.usingRealGPS) {
-      this.usingRealGPS = false;
-      this.live.stop();
-    }
+    this.pauseRealGPSForSimulation();
     this.isTravelling = true;
     this.followsUser = true;
     this.notify();
 
     this.simulated.wander(500, 7, () => this.finishSimulatedExcursion());
+  }
+
+  /**
+   * Hand control from real GPS to the simulator, starting it from wherever
+   * that real GPS fix last put you — not wherever the simulator was last
+   * left (`homePlace`, on a fresh install), which is what made "walk around
+   * here" wander a stale city on the other side of the world.
+   */
+  private pauseRealGPSForSimulation(): void {
+    if (!this.usingRealGPS) return;
+    this.usingRealGPS = false;
+    this.live.stop();
+    if (this.location) this.simulated.jump(this.location);
   }
 
   /** Cut a walk or flight short. Whatever fog burned off before now stays off. */
@@ -565,21 +572,45 @@ export class AppModel {
   // MARK: Demo helpers
 
   /**
-   * Cloud this device's map back over, so a demo can be run twice. Nothing
-   * anyone has left in the world is touched.
+   * Cloud this device's map back over, so a demo can be run twice — and take
+   * every photo *you* left with it, so the next run does not find last time's
+   * memories still sitting there. Friends' photographs are never touched;
+   * only this explorer's own uploads are.
    */
-  resetExploration(): void {
+  async resetExploration(): Promise<void> {
     this.exploration.reset();
     this.explorationPoints = [];
-    this.applyExplorationGate();
     this.lastPlaceCheck = null;
 
     // `jump` cancels any walk in flight without running its completion.
     this.isTravelling = false;
     this.followsUser = false;
-    this.simulated.jump(homePlace);
-    this.focusMap(homePlace, 90_000, true);
-    this.showBanner('Your map is clouded over again.');
+
+    if (this.usingRealGPS && this.location) {
+      // You are still standing exactly where you were a moment ago — only
+      // the fog and history are being cleared, not where the app thinks you
+      // are. Jumping to `homePlace` here is the bug that used to relocate a
+      // real-GPS user to San Francisco on every reset.
+      this.focusMap(this.location, DEFAULT_ZOOM_M, true);
+    } else {
+      this.simulated.jump(homePlace);
+      this.focusMap(homePlace, 90_000, true);
+    }
+
+    // Drop your own photos from view immediately rather than waiting on the
+    // network call below — there is no reason "cloud this over" should look
+    // like it worked halfway.
+    this.photosInView = this.photosInView.filter((photo) => photo.userId !== this.explorer.id);
+    this.applyExplorationGate();
+    this.notify();
+
+    try {
+      await this.service.deleteMyPhotos(this.explorer.id);
+      this.showBanner('Your map is clouded over, and your photos are gone with it.');
+    } catch (error) {
+      this.showBanner(`Clouded over, but couldn't remove your photos. ${messageFor(error)}`, true);
+    }
+    await this.refreshPhotosForCurrentRegion();
   }
 
   /** How far the map has drifted from the explorer, for the follow camera. */

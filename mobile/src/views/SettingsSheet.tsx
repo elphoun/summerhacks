@@ -2,7 +2,7 @@ import React from 'react';
 import { Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { distanceM } from '../geo';
-import { PLACES, Place, homePlace } from '../model/place';
+import { PLACES, Place } from '../model/place';
 import { backendAddress, backendKind } from '../services/backend';
 import { useAppModel } from '../state/useAppModel';
 import { Row, RowCaption, RowTitle, Section } from '../ui/ListSection';
@@ -49,7 +49,7 @@ export function SettingsSheet({ visible, close }: { visible: boolean; close: () 
   const confirmReset = () => {
     Alert.alert(
       'Cloud this map over?',
-      `You will start again from ${homePlace.city}, with everywhere back under cloud.`,
+      'All your data and photos will be reset.',
       [
         { text: 'Cancel', style: 'cancel' },
         {

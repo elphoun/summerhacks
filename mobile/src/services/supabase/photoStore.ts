@@ -152,6 +152,13 @@ export class NimbusPhotoStore {
     this.photoCount = await this.database.countPhotos();
     return { photo: { ...photo, isYours: true, distanceM: 0 }, nearby };
   }
+
+  // MARK: Delete (DELETE /photos)
+
+  async deleteMyPhotos(userId: string): Promise<void> {
+    await this.database.deletePhotosByUser(userId);
+    this.photoCount = await this.database.countPhotos();
+  }
 }
 
 function randomIdentifier(): string {
