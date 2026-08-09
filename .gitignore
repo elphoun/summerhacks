@@ -2,6 +2,10 @@
 # with `node seed.js`, so they do not belong in the repository.
 server/data/
 
+# Secrets
+.env
+server/.env
+
 # Xcode
 ios/build/
 ios/DerivedData/
