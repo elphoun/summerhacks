@@ -184,21 +184,13 @@ struct HomeView: View {
                                 } label: {
                                     PhotoThumbnail(photo: photo, cornerRadius: 12)
                                         .frame(width: 96, height: 128)
+                                        .clipped()
                                 }
                                 .buttonStyle(.plain)
                             }
                         }
                     }
                     .scrollIndicators(.hidden)
-
-                    Button {
-                        sheet = .history
-                    } label: {
-                        PixelIcon(glyph: .chevronRight, size: 14, color: WanderTheme.textPrimary)
-                            .frame(width: 34, height: 34)
-                            .background(Circle().fill(WanderTheme.panelSoft))
-                    }
-                    .buttonStyle(.plain)
                 }
             }
         }
