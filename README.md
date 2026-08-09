@@ -12,7 +12,7 @@ Two halves, deliberately kept apart:
 |---|---|---|
 | what | where you have been | photos left at a place |
 | who can see it | you, and nobody else | you and the friends you have added |
-| where it lives | a file in the app's container | `server/data/nimbus.db` |
+| where it lives | this device's own storage | `server/data/nimbus.db` |
 | can a friend's travel change it | **no** | n/a |
 
 That separation is structural, not a promise. Exploration state never crosses the network, and the server has no table, column or endpoint that could return it. Friendship shares photographs; there is nowhere for it to share movement even if it wanted to.
@@ -21,7 +21,7 @@ That separation is structural, not a promise. Exploration state never crosses th
 
 ## Running it
 
-Two pieces: a Node server holding the shared photos, and an iOS app.
+Two pieces: a Node server holding the shared photos, and an Expo app that runs in **Expo Go** — no Xcode, no native build, no signing.
 
 ### 1. The server
 
@@ -36,12 +36,20 @@ That generates 59 photographs from 8 fictional people across 12 landmarks, then 
 ### 2. The app
 
 ```bash
-open ios/Nimbus.xcodeproj
+cd mobile && npm install && npx expo start
 ```
 
-Pick any iPhone simulator and hit Run. The simulator reaches the server on `localhost` with no configuration.
+Then scan the QR code with **Expo Go** on your phone, or press `i` for an iOS simulator / `a` for an Android emulator.
 
-To run on a physical phone, set `NIMBUS_SERVER` to your Mac's LAN address in the scheme's environment variables (Product → Scheme → Edit Scheme → Run → Arguments), and pick your development team under Signing.
+The app finds the server by itself: Expo Go loads the JS bundle from this Mac, so the machine running `node server.js` is already known, and port 8788 is added to it. Nothing to configure, on a simulator or on a real phone on the same wifi.
+
+To point somewhere else, set `EXPO_PUBLIC_NIMBUS_SERVER` in `mobile/.env`:
+
+```
+EXPO_PUBLIC_NIMBUS_SERVER=http://192.168.1.20:8788
+```
+
+**The SDK is pinned to 54 on purpose.** Expo Go only runs projects built for the exact SDK it ships with, and the App Store build is 54 — newer SDKs exist on npm, but the Expo Go you can install on a phone cannot open them. Bumping this means everyone testing on a real device needs a development build instead, which is the thing the port was for. `npx expo start --tunnel` does not help either: it moves the JS bundle, not the photo server.
 
 ---
 
@@ -57,9 +65,9 @@ To run on a physical phone, set `NIMBUS_SERVER` to your Mac's LAN address in the
 
 ### Showing the friends half properly
 
-That needs two identities, which means two devices — the identity lives in the app container, so a second simulator is a second person.
+That needs two identities, which means two devices — the identity lives in the app's own storage, so a second simulator (or a second phone) is a second person.
 
-1. Boot a second simulator and run the app there. It comes up as its own explorer with its own code and its own fully clouded map.
+1. Open the app on a second device. It comes up as its own explorer with its own code and its own fully clouded map.
 2. Read one device's code off its **Friends** tab and type it into the other's *Add a friend* field. Friendship is mutual and takes effect in both directions at once.
 3. Walk the second device to the Eiffel Tower and take a photo. Each one now finds the other's photograph sitting among the samples — and neither map has uncovered so much as a street for the other.
 
@@ -69,23 +77,25 @@ That needs two identities, which means two devices — the identity lives in the
 
 ### Fog
 
-`ios/Nimbus/Map/FogOverlay.swift`. An `MKOverlay` covering `MKMapRect.world`, drawn above map labels so place names hide under cloud too. The renderer fills each tile with the cloud layer, then switches to `CGBlendMode.destinationOut` and erases a **radial gradient** per explored point — soft edges, cloud dissolving rather than a cookie cutter.
+`mobile/src/map/FogLayer.tsx`. An SVG layer covering the viewport, sitting **above** the map so place names hide under cloud too. The cloud is a filled rect; the reveals are punched out of it by an SVG luminance mask whose white ground is fog and whose radial gradients are the parts you have earned — soft edges, cloud dissolving rather than a cookie cutter.
 
 Each location fix uncovers 150m. Fixes within 60m of an existing breadcrumb are discarded, which keeps the point set small. Zoomed out to the whole planet a 150m hole would be sub-pixel, so the erase radius has an on-screen floor and a life of travel still reads as a constellation.
 
+Sitting above the map is also why nothing on the map is a `<Marker>`: a native annotation would be *underneath* an opaque overlay and therefore invisible. The cloud, the photo pins and the explorer's own dot are all projected onto the map's current region by hand (`mobile/src/map/projection.ts`), which is what keeps them registered against each other.
+
 ### Exploration
 
-`ios/Nimbus/Services/ExplorationStore.swift`. Breadcrumbs, first-visit history and an area statistic, in a JSON file per explorer. A coarse spatial index keeps `isExplored` off a linear scan; a finer grid measures uncovered area without double-counting overlapping circles.
+`mobile/src/services/explorationStore.ts`. Breadcrumbs, first-visit history and an area statistic, in one JSON record per explorer. A coarse spatial index keeps `isExplored` off a linear scan; a finer grid measures uncovered area without double-counting overlapping circles.
 
 ### Location
 
-`ios/Nimbus/Services/LocationProvider.swift`. One protocol, two implementations: a simulator (for demos) and `CLLocationManager` (real, toggleable in the Travel sheet). The distinction that matters is that **walking** emits a stream of fixes and leaves a trail through the fog, while **flying** emits a single fix on arrival. A plane should not uncover a stripe across the planet.
+`mobile/src/services/locationProvider.ts`. One interface, two implementations: a simulator (for demos) and `expo-location` (real, toggleable in the Travel sheet). The distinction that matters is that **walking** emits a stream of fixes and leaves a trail through the fog, while **flying** emits a single fix on arrival. A plane should not uncover a stripe across the planet.
 
-`LiveLocationProvider` documents the three-line change to true background tracking; the Info.plist entitlements and usage strings are already in place.
+`liveLocationProvider.ts` documents the change to true background tracking. That one needs a development build rather than Expo Go — background location is not among the entitlements Expo Go carries.
 
 ### Identity and friends
 
-`ios/Nimbus/Model/Explorer.swift` and `server/db.js`. One identity per install, made on first launch and kept in `UserDefaults`; `POST /users` announces it on every launch, which is also how a rename propagates. The server allocates a six-character code from an alphabet with no `O`, `0`, `I`, `1` or `L` in it, because these get read aloud across a table.
+`mobile/src/model/explorer.ts` and `server/db.js`. One identity per install, made on first launch and kept in `AsyncStorage`; `POST /users` announces it on every launch, which is also how a rename propagates. The server allocates a six-character code from an alphabet with no `O`, `0`, `I`, `1` or `L` in it, because these get read aloud across a table.
 
 Friendship is stored symmetrically — two rows per pair — which costs nothing at this size and removes every `OR` from the read path. "Whose photographs may I see" becomes one primary-key lookup, and the answer feeds a single `IN (…)` clause shared by the map query and the radius search, so the two can never drift apart.
 
@@ -99,9 +109,17 @@ Search 100m. If that finds fewer than **3 photos from your friends** — your ow
 
 A stranger standing next to you is not company either: the scope is applied before the count, so three photos from someone you have not added do not stop the search widening to find one from someone you have.
 
-### Seed photographs
+### Seed photographs, and the one you take without a camera
 
 `server/artwork.js` and `server/png.js` draw them: a PNG encoder over `node:zlib`, a small raster canvas, and a hero silhouette per landmark rendered under a seeded time of day. Nothing is downloaded, so the gallery does not go blank when the venue wifi does. Seeds derive from photo id, so regenerating produces identical images.
+
+No simulator or emulator has a camera, so `GET /sample-shot` (`server/sampleShot.js`) draws a plausible photograph on the same canvas and hands it back as base64 — the currency `POST /photos` already deals in. That is what *Use a sample shot* is, and it is why the capture flow is still demonstrable on a machine with no camera at all.
+
+### Pixel art
+
+The icon set is hackernoon/pixel-icon-library (MIT), vendored as SVG path data in `mobile/src/ui/pixelGlyphs.ts` and tinted like SF Symbols. The source PDFs are in `mobile/tools/pixel-icons`; `tools/pdf2paths.py` regenerates the module from them.
+
+Cards and photographs have corners drawn as a staircase of right-angle steps rather than a curve — a rounded corner as pixel art would draw one (`mobile/src/ui/pixelShape.ts`). React Native clips to a corner *radius* and nothing else, so rather than clipping, the four corner offcuts are painted over the top in whatever colour the box sits on. Same result, one overlay instead of an offscreen render pass on a live map.
 
 ---
 
@@ -114,19 +132,32 @@ cd server && node --test
 Sixteen tests over the parts that are easy to get quietly wrong. The search: haversine accuracy, bounding-box corners being rejected, ordering, the 100m case, the 250m fallback, own-photos-don't-count, empty ocean, the antimeridian and poles. And the friends scope: strangers excluded from both the map query and the radius search, a stranger not blocking the widen, mutual friendship, codes surviving a rename, codes read back the way a person types them, and a fresh install landing with the sample people already added.
 
 ```bash
-cd ios && ./logic-tests.sh
+cd mobile && npm test
 ```
 
-Ten tests over the exploration model, compiled and run natively on macOS with no simulator involved — including the one the product rests on: *a map is keyed to one identity and no other can uncover it*, before or after a reload.
+Eighteen tests, in two halves.
+
+Ten over the exploration model — including the one the product rests on: *a map is keyed to one identity and no other can uncover it*, before or after a reload. `ExplorationStore` takes its storage as an argument, so these run against a dictionary in memory: no device, no simulator, no network.
+
+Eight over the map projection, which is new. MapKit used to hand the fog renderer a map-point space and a zoom scale and none of that arithmetic existed; react-native-maps reports a region and nothing else, so it is the app's own now — and everything drawn over the map is only registered against the map if it is right.
 
 ```bash
-cd ios && ./typecheck.sh
+cd mobile && npm run typecheck
 ```
 
-Type-checks every Swift file against the simulator SDK in a couple of seconds. Useful as the inner loop, and it works even when no simulator runtime is installed (a full bundle build needs one, because `actool` refuses without it).
+Type-checks every file, app and tests alike.
 
 ---
 
 ## Swapping the backend
 
-`PhotoService` (`ios/Nimbus/Services/PhotoService.swift`) is a protocol; `NimbusAPI` is the only implementation. A `SupabasePhotoService` conforming to it drops in with no changes to any view — the local server exists because it needs no accounts, no keys and no network.
+`PhotoService` (`mobile/src/services/photoService.ts`) is an interface; `NimbusAPI` is the only implementation the app uses. The local server exists because it needs no accounts, no keys and no network.
+
+`mobile/src/services/supabase/` is the alternative: a port of `server/db.js` against Supabase (PostgREST + Storage, over plain `fetch` — no SDK), with the schema it expects in `schema.sql`. Point it somewhere with two variables in `mobile/.env`:
+
+```
+EXPO_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=eyJ...
+```
+
+What it does not carry is friendship: that schema has users and photos and nothing else, so there is no friend code to issue and no audience to scope a query to. Using it wholesale means adding those two tables first.

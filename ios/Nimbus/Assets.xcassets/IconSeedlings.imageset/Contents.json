@@ -1,8 +1,0 @@
-{
-  "images": [{"idiom": "universal", "filename": "IconSeedlings.pdf"}],
-  "info": {"author": "xcode", "version": 1},
-  "properties": {
-    "template-rendering-intent": "template",
-    "preserves-vector-representation": true
-  }
-}

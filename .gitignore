@@ -6,16 +6,8 @@ server/data/
 .env
 server/.env
 
-# Xcode
-ios/build/
-ios/DerivedData/
-*.xcuserstate
-xcuserdata/
-*.xcscmblueprint
-*.xccheckout
+# The Expo app keeps its own ignores in mobile/.gitignore.
+node_modules/
 
 # macOS
 .DS_Store
-
-#.env
-.env

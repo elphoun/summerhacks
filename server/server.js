@@ -1,6 +1,7 @@
 // Nimbus shared-memory API. node:http + node:sqlite, no dependencies.
 //
 //   GET  /health
+//   GET  /sample-shot?seed           a generated stand-in photograph, base64
 //   GET  /users
 //   POST /users                     register this device's identity
 //   GET  /friends?userId
@@ -22,6 +23,7 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
+import { renderSampleShot } from './sampleShot.js';
 import {
   MEDIA_DIR,
   audienceFor,
@@ -64,6 +66,16 @@ export function createServer(db) {
     try {
       if (route === 'GET /health') {
         return sendJson(res, 200, { ok: true, photos: countPhotos(db), config });
+      }
+
+      // There is no camera on a simulator or an emulator, and the capture flow
+      // is the half of the app worth showing. Draw something plausible instead;
+      // base64 because that is the currency POST /photos already deals in, so
+      // the app can hand back exactly what it was given.
+      if (route === 'GET /sample-shot') {
+        const seed = Number.parseInt(url.searchParams.get('seed') ?? '', 10);
+        const png = renderSampleShot(Number.isFinite(seed) ? seed : undefined);
+        return sendJson(res, 200, { imageBase64: png.toString('base64') });
       }
 
       if (route === 'GET /users') {

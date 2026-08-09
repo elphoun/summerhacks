@@ -1,0 +1,68 @@
+{
+  "expo": {
+    "name": "Nimbus",
+    "slug": "nimbus",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#F6E9CF",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.nimbus.wander",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Nimbus uncovers the map where you have actually been. Your location never leaves this device.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Nimbus can keep uncovering your map in the background as you travel. Your location never leaves this device.",
+        "NSCameraUsageDescription": "Take a photo to leave a memory at this place for other people to find.",
+        "NSPhotoLibraryUsageDescription": "Choose a photo to leave at this place for other people to find.",
+        "NSLocalNetworkUsageDescription": "Nimbus talks to the memory server running on your computer.",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      }
+    },
+    "android": {
+      "package": "com.nimbus.wander",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#F6E9CF"
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "CAMERA",
+        "READ_MEDIA_IMAGES"
+      ],
+      "usesCleartextTraffic": true,
+      "edgeToEdgeEnabled": true
+    },
+    "plugins": [
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/Manrope-Regular.ttf",
+            "./assets/fonts/Manrope-Medium.ttf",
+            "./assets/fonts/Manrope-SemiBold.ttf",
+            "./assets/fonts/Manrope-Bold.ttf",
+            "./assets/fonts/Manrope-ExtraBold.ttf"
+          ]
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Nimbus uncovers the map where you have actually been. Your location never leaves this device."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose a photo to leave at this place for other people to find.",
+          "cameraPermission": "Take a photo to leave a memory at this place for other people to find."
+        }
+      ]
+    ]
+  }
+}
