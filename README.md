@@ -36,7 +36,7 @@ cd server && node seed.js && node server.js
 
 #### 2. Supabase Configuration
 
-Before running the Expo app, create a mobile/.env file with your own Supabase credentials.
+If you want to run it on your own database, create a mobile/.env file with your own Supabase credentials.
 
 ```
 EXPO_PUBLIC_SUPABASE_URL=your_supabase_project_url
