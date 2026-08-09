@@ -57,7 +57,7 @@ EXPO_PUBLIC_NIMBUS_SERVER=http://192.168.1.20:8788
 
 1. **Open the app.** The **Friends** tab is you: your name, your friend code, and eight sample people already added so there is something to find. The **Map** tab is the whole world, under cloud.
 2. **Map** → **Travel** → tap *Eiffel Tower*. The map flies there, and a short walk uncovers a few streets. Watch the cloud burn off along the path.
-3. **Camera** → *Use a sample shot* → add a note → *Leave this photo here*.
+3. **Camera** → take a photo or pick one from the library → add a note → *Leave this photo here*.
 4. **Six of your friends have stood here.** Their photos are all within 100m. Tap one — Julien Rocher, 27m away, last March.
 5. **Travel** → *Griffith Observatory*, then take another photo. This time the sheet says **widened**: fewer than three memories within 100m, so the search expanded to 250m. That is the fallback firing, visibly.
 6. **Pan to somewhere you have not been.** The top-right reads *"N still under cloud"* — your friends' photos are there, the map knows it, and it will not show them until you have earned that ground. **This is the point of the whole thing.**
@@ -109,11 +109,11 @@ Search 100m. If that finds fewer than **3 photos from your friends** — your ow
 
 A stranger standing next to you is not company either: the scope is applied before the count, so three photos from someone you have not added do not stop the search widening to find one from someone you have.
 
-### Seed photographs, and the one you take without a camera
+### Seed photographs
 
 `server/artwork.js` and `server/png.js` draw them: a PNG encoder over `node:zlib`, a small raster canvas, and a hero silhouette per landmark rendered under a seeded time of day. Nothing is downloaded, so the gallery does not go blank when the venue wifi does. Seeds derive from photo id, so regenerating produces identical images.
 
-No simulator or emulator has a camera, so `GET /sample-shot` (`server/sampleShot.js`) draws a plausible photograph on the same canvas and hands it back as base64 — the currency `POST /photos` already deals in. That is what *Use a sample shot* is, and it is why the capture flow is still demonstrable on a machine with no camera at all.
+`GET /sample-shot` (`server/sampleShot.js`) draws a stand-in photograph on the same canvas and hands it back as base64, for a machine with no camera at all. Nothing in the app calls it any more — the button it existed for is gone — but it costs nothing to leave standing for a `curl`.
 
 ### Pixel art
 
@@ -135,11 +135,13 @@ Sixteen tests over the parts that are easy to get quietly wrong. The search: hav
 cd mobile && npm test
 ```
 
-Eighteen tests, in two halves.
+Forty-six tests, in three groups.
 
 Ten over the exploration model — including the one the product rests on: *a map is keyed to one identity and no other can uncover it*, before or after a reload. `ExplorationStore` takes its storage as an argument, so these run against a dictionary in memory: no device, no simulator, no network.
 
 Eight over the map projection, which is new. MapKit used to hand the fog renderer a map-point space and a zoom scale and none of that arithmetic existed; react-native-maps reports a region and nothing else, so it is the app's own now — and everything drawn over the map is only registered against the map if it is right.
+
+Twenty-eight over the Supabase backend, against a scripted `fetch`. Mostly the audience filter — the rule the server enforces in SQL and this has to enforce in a query string — and the columns a merge-duplicates upsert must not touch. A friend code is allocated by a second write, which SQLite did in one statement and PostgREST cannot: a row inserted first and a code claimed second is a race, a retry, and a column that has to survive every later upsert. Friend stats have the mirror-image problem — leaving a photo upserts the user but knows nothing about how far they have walked, so sending a zero would reset their leaderboard row on every capture.
 
 ```bash
 cd mobile && npm run typecheck
@@ -151,13 +153,17 @@ Type-checks every file, app and tests alike.
 
 ## Swapping the backend
 
-`PhotoService` (`mobile/src/services/photoService.ts`) is an interface; `NimbusAPI` is the only implementation the app uses. The local server exists because it needs no accounts, no keys and no network.
+`PhotoService` (`mobile/src/services/photoService.ts`) is an interface with two implementations. `NimbusAPI` talks to the local server, which exists because it needs no accounts, no keys and no network. `SupabasePhotoService` talks to Supabase — PostgREST and Storage over plain `fetch`, no SDK — and is a port of `server/db.js` and the routes in front of it: users, friend codes, friendships, friend stats and their leaderboard ranking, the audience filter, the radius search and its fallback.
 
-`mobile/src/services/supabase/` is the alternative: a port of `server/db.js` against Supabase (PostgREST + Storage, over plain `fetch` — no SDK), with the schema it expects in `schema.sql`. Point it somewhere with two variables in `mobile/.env`:
+Which one a build uses is a matter of configuration rather than a code change. Run the schema in `mobile/src/services/supabase/schema.sql` (Supabase SQL editor, or `supabase db push`; re-running it is safe), then put the project's publishable credentials in `mobile/.env`:
 
 ```
 EXPO_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
 EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=eyJ...
 ```
 
-What it does not carry is friendship: that schema has users and photos and nothing else, so there is no friend code to issue and no audience to scope a query to. Using it wholesale means adding those two tables first.
+That is the whole of it: a build that has them uses Supabase, a build that does not keeps the Node server. `EXPO_PUBLIC_NIMBUS_BACKEND=server` forces the local server back on without unsetting anything, which is how to check a change against both.
+
+One thing differs from the server, and it is worth knowing before this is pointed at anything real.
+
+**The audience filter is applied by the client.** Against the server, "you see your friends' photographs and no one else's" is a `WHERE` clause the server writes and the client cannot influence. Against Supabase it is a `user_id=in.(…)` the client writes, because the publishable key carries no identity for a row-level policy to test — so RLS lets any holder of that key read every row, and the filter narrows what the app asks for rather than what the database will answer. Closing that means Supabase Auth and policies written against `auth.uid()`. The policies in `schema.sql` are demo policies and say so.

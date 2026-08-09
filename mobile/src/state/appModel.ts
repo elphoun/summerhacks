@@ -1,13 +1,13 @@
-import { serverBaseURL } from '../config';
 import { Coordinate, distanceM } from '../geo';
 import { Explorer, LocalIdentity, RemoteUser } from '../model/explorer';
 import { NearbyResult, Photo, photoCoordinate } from '../model/photo';
 import { Place, homePlace, nearestPlace } from '../model/place';
+import { backendUnreachableAdvice, createPhotoService } from '../services/backend';
 import { ExplorationStore, ExploredPoint } from '../services/explorationStore';
 import { reverseGeocode } from '../services/geocoding';
 import { AuthorizationStatus, LiveLocationProvider } from '../services/liveLocationProvider';
 import { SimulatedLocationProvider } from '../services/locationProvider';
-import { NimbusAPI, PhotoService, PhotoServiceError } from '../services/photoService';
+import { PhotoService, PhotoServiceError } from '../services/photoService';
 
 /** A named place, whichever way it was resolved. */
 interface ResolvedPlace {
@@ -174,7 +174,7 @@ export class AppModel {
    * Device storage is asynchronous, so the identity and the map have to be read
    * back before there is a model to observe.
    */
-  static async boot(service: PhotoService = new NimbusAPI()): Promise<AppModel> {
+  static async boot(service: PhotoService = createPhotoService()): Promise<AppModel> {
     const explorer = await LocalIdentity.loadOrCreate();
     const exploration = await new ExplorationStore(explorer.id).load();
     return new AppModel(explorer, exploration, service);
@@ -387,10 +387,7 @@ export class AppModel {
     const reachable = await this.service.health();
     this.serverReachable = reachable;
     if (!reachable) {
-      this.showBanner(
-        `Can't reach the photo server at ${serverBaseURL} — run \`node server.js\`.`,
-        true
-      );
+      this.showBanner(backendUnreachableAdvice(), true);
       return;
     }
     this.notify();
@@ -546,11 +543,6 @@ export class AppModel {
       this.showBanner(messageFor(error), true);
       return null;
     }
-  }
-
-  /** A generated stand-in photograph, for demoing capture without a camera. */
-  sampleShot(): Promise<string> {
-    return this.service.sampleShot();
   }
 
   // MARK: Banners

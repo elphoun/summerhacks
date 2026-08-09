@@ -1,6 +1,7 @@
 import { Coordinate } from '../../geo';
 import { Photo } from '../../model/photo';
 import {
+  FriendStats,
   NearbySearchConfig,
   NearbySearchResult,
   NimbusDatabase,
@@ -13,11 +14,11 @@ import {
  * server/server.js, so a screen written against the local server reads the same
  * against Supabase.
  *
- * What it does *not* carry is friendship: the Supabase schema (schema.sql) has
- * users and photos and nothing else, so there is no friend code to issue and no
- * audience to scope a query to. Swapping `NimbusAPI` for this wholesale means
- * either adding those two tables or accepting that everyone sees everything —
- * which is why the app still talks to the Node server by default.
+ * The audience rule server/server.js applies to every photo route is applied
+ * here too — but from the client, which is the one thing this cannot do as well
+ * as the server does. See the note in schema.sql: with the publishable key
+ * there is no identity for a row-level policy to test, so the filter narrows
+ * what the app asks for rather than what the database is willing to answer.
  */
 export class NimbusPhotoStore {
   readonly searchConfig: NearbySearchConfig;
@@ -55,23 +56,50 @@ export class NimbusPhotoStore {
     return this.database.listUsers();
   }
 
-  registerUser(id: string, displayName: string, color = '#6EA8FF'): Promise<NimbusUser> {
-    return this.database.upsertUser(id, displayName, color, false);
+  /**
+   * Register or rename, and get back the friend code and current friends —
+   * the same round trip as `POST /users`, and the same place this device's
+   * travels are reported for the friends leaderboard.
+   */
+  async registerUser(
+    id: string,
+    displayName: string,
+    color = '#6EA8FF',
+    stats?: FriendStats
+  ): Promise<{ user: NimbusUser; friends: NimbusUser[] }> {
+    const user = await this.database.upsertUser(id, displayName, color, false, stats);
+    await this.database.befriendSeedUsers(id);
+    return { user, friends: await this.database.listFriends(id) };
+  }
+
+  // MARK: Friends (GET /friends, POST /friends)
+
+  friends(userId: string): Promise<NimbusUser[]> {
+    return this.database.listFriends(userId);
+  }
+
+  findUserByCode(code: string): Promise<NimbusUser | null> {
+    return this.database.findUserByCode(code);
+  }
+
+  async addFriend(userId: string, friendId: string): Promise<NimbusUser[]> {
+    await this.database.addFriendship(userId, friendId);
+    return this.database.listFriends(userId);
   }
 
   // MARK: Discovery (GET /photos/nearby, /photos/bbox)
 
-  nearby(centre: Coordinate, viewerId: string | null): Promise<NearbySearchResult> {
-    return this.database.findNearby(centre, viewerId, this.searchConfig);
+  async nearby(centre: Coordinate, viewerId: string | null): Promise<NearbySearchResult> {
+    const audience = await this.database.audienceFor(viewerId);
+    return this.database.findNearby(centre, viewerId, this.searchConfig, audience);
   }
 
-  photosInBBox(bounds: {
-    minLat: number;
-    maxLat: number;
-    minLon: number;
-    maxLon: number;
-  }): Promise<Photo[]> {
-    return this.database.photosInBBox(bounds);
+  async photosInBBox(
+    bounds: { minLat: number; maxLat: number; minLon: number; maxLon: number },
+    viewerId: string | null = null
+  ): Promise<Photo[]> {
+    const audience = await this.database.audienceFor(viewerId);
+    return this.database.photosInBBox(bounds, audience);
   }
 
   photo(id: string): Promise<Photo | null> {
@@ -119,11 +147,7 @@ export class NimbusPhotoStore {
       placeName: request.placeName ?? null,
     });
 
-    const nearby = await this.database.findNearby(
-      request.coordinate,
-      request.userId,
-      this.searchConfig
-    );
+    const nearby = await this.nearby(request.coordinate, request.userId);
 
     this.photoCount = await this.database.countPhotos();
     return { photo: { ...photo, isYours: true, distanceM: 0 }, nearby };
